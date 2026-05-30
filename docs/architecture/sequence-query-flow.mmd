@@ -1,0 +1,136 @@
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1168bd', 'edgeLabelBackground':'#fff', 'sequenceNumberColor':'#fff'}}}%%
+
+sequenceDiagram
+    autonumber
+    title Детальный флоу обработки сложного запроса (GraphRAG Platform)
+
+    actor User as 👤 Пользователь
+    participant FE as 🌐 Frontend<br/>(React)
+    participant GW as 🔷 API Gateway<br/>(Kong/Nginx)
+    participant SM as 📋 Session<br/>Manager
+    participant IG as 🛡️ Input<br/>Guardrails
+    participant RBAC as 🔐 RBAC<br/>Filter
+    participant PL as 🧠 Planner<br/>(LangGraph)
+    participant TI as 🔧 Tools<br/>Interface
+    participant MM as 💾 Memory<br/>Module
+    participant QD as 📊 Qdrant<br/>(Vector DB)
+    participant N4 as 🕸️ Neo4j<br/>(Graph DB)
+    participant OL as 🤖 Ollama<br/>(LLM)
+    participant OG as 🛡️ Output<br/>Guardrails
+    participant JG as 📡 Jaeger<br/>(Tracing)
+    participant PG as 🗄️ PostgreSQL
+
+    Note over User, JG: ═══ ФАЗА 1: Аутентификация и валидация ═══
+
+    User ->>+ FE: Вводит запрос в чат-интерфейсе
+    FE ->>+ GW: POST /api/v1/chat {query, session_id}<br/>+ JWT Bearer Token
+    GW ->> GW: TLS termination, rate limiting
+    GW ->> GW: Валидация JWT (проверка подписи, exp, iss)
+
+    alt JWT невалидный или истёк
+        GW -->> FE: 401 Unauthorized
+        FE -->> User: Перенаправление на логин
+    end
+
+    GW ->>+ SM: Forward request + decoded claims
+    SM ->> PG: SELECT session WHERE id = ?
+    PG -->> SM: Session context (история сообщений)
+    SM ->> JG: span: session.load (trace_id)
+
+    Note over SM, OG: ═══ ФАЗА 2: Guardrails и RBAC ═══
+
+    SM ->>+ IG: {query, session_context}
+    IG ->> IG: Проверка PII (regex + NER):<br/>ИНН, паспорт, телефон, email
+    IG ->> IG: Детекция prompt injection:<br/>jailbreak patterns, role override
+
+    alt PII обнаружены
+        IG -->> SM: 422 {error: "PII_DETECTED", fields: [...]}
+        SM -->> GW: 422 PII Error
+        GW -->> FE: 422 + маскированное сообщение
+        FE -->> User: ⚠️ Запрос содержит персональные данные
+    end
+
+    alt Prompt Injection обнаружен
+        IG -->> SM: 403 {error: "PROMPT_INJECTION"}
+        SM ->> PG: INSERT audit_log (user_id, 'INJECTION_ATTEMPT')
+        SM -->> GW: 403 Forbidden
+        GW -->> FE: 403
+        FE -->> User: ⛔ Запрос заблокирован
+    end
+
+    IG ->>+ RBAC: {query, user_role, department}
+    RBAC ->> PG: SELECT permissions WHERE role = ?
+    PG -->> RBAC: {allowed_security_levels, departments, actions}
+    RBAC ->> RBAC: Формирование фильтров доступа:<br/>security_level ≤ user_level<br/>department ∈ user_departments
+    RBAC ->> JG: span: rbac.check
+
+    Note over PL, OL: ═══ ФАЗА 3: Agent Loop (LangGraph State Machine) ═══
+
+    RBAC ->>+ PL: {query, rbac_filters, session_context}
+
+    loop LangGraph Agent Loop (макс. 5 итераций)
+        PL ->> PL: State: QUERY_ANALYSIS<br/>Классификация запроса (factual / analytical / generative)
+        PL ->> JG: span: planner.analyze
+
+        PL ->>+ TI: Вызов: GraphRAG Retrieval
+        TI ->>+ QD: Semantic search (bge-m3 embedding)<br/>+ RBAC metadata filter
+        QD -->>- TI: Top-K векторных результатов (chunks + scores)
+
+        TI ->>+ N4: Cypher: MATCH (e:Entity)-[r]-(d:Document)<br/>WHERE d.security_level <= $level<br/>AND d.department IN $depts
+        N4 -->>- TI: Подграф: entities + relationships + documents
+
+        TI ->> TI: Merge: vector results ∪ graph context
+        TI ->> JG: span: tools.retrieval
+
+        TI ->>+ OL: POST /api/generate<br/>{model: "bge-m3", prompt: rerank_prompt, docs: [...]}
+        OL -->>- TI: Reranked results с confidence scores
+        TI ->> JG: span: tools.rerank
+        TI -->>- PL: Reranked context (top documents)
+
+        PL ->> PL: State: EVALUATE<br/>Достаточно ли контекста?
+
+        alt Контекст недостаточен
+            PL ->> PL: State: REFINE_QUERY<br/>Переформулировка / расширение
+            PL ->> TI: Повторный retrieval с уточнённым запросом
+        end
+
+        PL ->>+ MM: Сохранение промежуточного контекста
+        MM ->> N4: MERGE (s:Session {id: $sid})-[:HAS_CONTEXT]->(ctx)
+        MM -->>- PL: OK
+
+        PL ->>+ OL: POST /api/generate<br/>{model: "t-lite-it-1.0", prompt: generation_prompt,<br/>context: reranked_docs, temperature: 0.3}
+        OL ->> OL: GPU inference (RTX 4060)<br/>T-lite-it-1.0 Q4_K_M
+        OL -->>- PL: Generated response + token_usage
+        PL ->> JG: span: planner.generate
+
+        PL ->> PL: State: EVALUATE_RESPONSE<br/>Проверка полноты и релевантности
+
+        alt Требуется Tool Execution
+            PL ->> TI: Entity Extraction / Summarization
+            TI ->> OL: Tool-specific LLM call
+            OL -->> TI: Результат
+            TI -->> PL: Tool output
+        end
+    end
+
+    Note over PL, FE: ═══ ФАЗА 4: Выходные проверки и ответ ═══
+
+    PL ->>+ OG: {response, sources, confidence}
+    OG ->> OG: Фильтрация утечек:<br/>внутренние имена, confidential маркеры
+    OG ->> OG: Проверка галлюцинаций:<br/>cross-reference с source documents
+    OG ->> OG: Добавление citations:<br/>[Источник: doc_name, §параграф]
+    OG ->> JG: span: guardrails.output
+    OG -->>- PL: Sanitized response
+
+    PL -->>- RBAC: Final response
+    RBAC -->>- IG: Pass-through
+    IG -->>- SM: Response
+
+    SM ->> PG: INSERT INTO sessions (messages) VALUES (...)
+    SM ->> PG: INSERT INTO audit_logs (user_id, action, query_hash, response_time)
+    SM ->> JG: span: session.save + trace.complete
+
+    SM -->>- GW: 200 {answer, sources[], confidence, trace_id}
+    GW -->>- FE: 200 JSON Response
+    FE ->> FE: Рендеринг ответа + источники + confidence badge
+    FE -->>- User: 💬 Ответ с цитатами и ссылками на документы

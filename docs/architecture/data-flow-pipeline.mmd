@@ -1,0 +1,120 @@
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1168bd'}}}%%
+
+flowchart TB
+    title["📊 Data Flow Diagram — GraphRAG Pipeline"]
+    style title fill:none,stroke:none,font-size:18px
+
+    %% ═══════════════════════════════════════════════
+    %%  INGESTION PHASE
+    %% ═══════════════════════════════════════════════
+
+    subgraph INGESTION["🔄 PHASE 1: Ingestion (Загрузка)"]
+        direction TB
+        SRC_LAW["📁 RusLawOD<br/>(Законодательство РФ)"]
+        SRC_RFSD["📁 RFSD<br/>(Финансовые документы)"]
+        SRC_INT["📁 Internal Docs<br/>(Корпоративные документы)"]
+        SRC_ERP["🔗 ERP / EDMS<br/>(Импорт по расписанию)"]
+
+        PARSER["📝 Document Parser<br/>• PDF / DOCX / HTML / XML<br/>• Извлечение метаданных<br/>• Определение языка"]
+
+        CHUNKER["✂️ Chunking Engine<br/>• Semantic chunking (512 tokens)<br/>• Overlap 50 tokens<br/>• Сохранение структуры разделов"]
+
+        META["🏷️ Metadata Enricher<br/>• security_level assignment<br/>• department tagging<br/>• access_roles mapping<br/>• content_hash (SHA-256)"]
+
+        SRC_LAW --> PARSER
+        SRC_RFSD --> PARSER
+        SRC_INT --> PARSER
+        SRC_ERP --> PARSER
+        PARSER --> CHUNKER
+        CHUNKER --> META
+    end
+
+    %% ═══════════════════════════════════════════════
+    %%  EXTRACTION PHASE
+    %% ═══════════════════════════════════════════════
+
+    subgraph EXTRACTION["🔍 PHASE 2: Extraction (Извлечение)"]
+        direction TB
+        NER["🏷️ Entity Extraction<br/>• NER (Organizations, Persons, Laws)<br/>• T-lite-it-1.0 via Ollama<br/>• Canonical name resolution"]
+
+        REL["🔗 Relation Extraction<br/>• Subject-Predicate-Object triples<br/>• Co-reference resolution<br/>• Confidence scoring"]
+
+        CONCEPT["💡 Concept Detection<br/>• Юридические термины<br/>• Тематическая классификация<br/>• Иерархия понятий"]
+
+        EMB["🧮 Embedding Generation<br/>• BAAI/bge-m3 (1024 dims)<br/>• Batch processing<br/>• Ollama GPU inference"]
+
+        NER --> REL
+        REL --> CONCEPT
+        META --> NER
+        META --> EMB
+    end
+
+    %% ═══════════════════════════════════════════════
+    %%  GRAPH BUILDING PHASE
+    %% ═══════════════════════════════════════════════
+
+    subgraph GRAPH_BUILD["🕸️ PHASE 3: Graph Building (Построение графа)"]
+        direction TB
+        DEDUP["🔄 Deduplication<br/>• Entity merging by canonical name<br/>• Fuzzy matching (Levenshtein)<br/>• Cross-document linking"]
+
+        NEO4J_WRITE["📥 Neo4j Writer<br/>• CREATE/MERGE nodes<br/>• CREATE relationships<br/>• Set RBAC properties<br/>• Community detection (Leiden)"]
+
+        QDRANT_WRITE["📥 Qdrant Indexer<br/>• Upsert vectors + payload<br/>• RBAC metadata fields<br/>• HNSW index rebuild"]
+
+        IDX_VALIDATE["✅ Index Validation<br/>• Consistency check (Neo4j ↔ Qdrant)<br/>• Coverage report<br/>• Orphan detection"]
+
+        CONCEPT --> DEDUP
+        REL --> DEDUP
+        DEDUP --> NEO4J_WRITE
+        EMB --> QDRANT_WRITE
+        DEDUP --> QDRANT_WRITE
+        NEO4J_WRITE --> IDX_VALIDATE
+        QDRANT_WRITE --> IDX_VALIDATE
+    end
+
+    %% ═══════════════════════════════════════════════
+    %%  RETRIEVAL PHASE
+    %% ═══════════════════════════════════════════════
+
+    subgraph RETRIEVAL["🎯 PHASE 4: Retrieval (Поиск и генерация)"]
+        direction TB
+        QUERY_IN["❓ User Query<br/>+ RBAC context"]
+
+        VEC_SEARCH["🔎 Vector Search<br/>• Qdrant semantic search<br/>• RBAC metadata filter<br/>• Top-K = 20"]
+
+        GRAPH_SEARCH["🕸️ Graph Traversal<br/>• Cypher: 2-hop expansion<br/>• Entity-centric retrieval<br/>• Community-aware search<br/>• RBAC node filtering"]
+
+        MERGE["🔀 Result Fusion<br/>• Reciprocal Rank Fusion<br/>• Deduplication<br/>• Score normalization"]
+
+        RERANK["📊 Reranking<br/>• Cross-encoder (T-lite)<br/>• Relevance scoring<br/>• Top-5 selection"]
+
+        LLM_GEN["🤖 LLM Generation<br/>• T-lite-it-1.0 Q4_K_M<br/>• Context window: reranked docs<br/>• Citation generation<br/>• Temperature: 0.3"]
+
+        RESPONSE["💬 Response<br/>• Answer + citations<br/>• Source documents<br/>• Confidence score<br/>• Trace ID"]
+
+        QUERY_IN --> VEC_SEARCH
+        QUERY_IN --> GRAPH_SEARCH
+        VEC_SEARCH --> MERGE
+        GRAPH_SEARCH --> MERGE
+        MERGE --> RERANK
+        RERANK --> LLM_GEN
+        LLM_GEN --> RESPONSE
+    end
+
+    %% ═══════════════════════════════════════════════
+    %%  Cross-phase connections
+    %% ═══════════════════════════════════════════════
+
+    INGESTION --> EXTRACTION
+    EXTRACTION --> GRAPH_BUILD
+    GRAPH_BUILD -.->|"Индексы готовы к запросам"| RETRIEVAL
+
+    %% ═══════════════════════════════════════════════
+    %%  Styling
+    %% ═══════════════════════════════════════════════
+
+    style INGESTION fill:#e8f4fd,stroke:#1168bd,stroke-width:2px
+    style EXTRACTION fill:#fde8e8,stroke:#e05038,stroke-width:2px
+    style GRAPH_BUILD fill:#e8fde8,stroke:#2e6b34,stroke-width:2px
+    style RETRIEVAL fill:#fdf8e8,stroke:#d4a017,stroke-width:2px
+    style title fill:none,stroke:none

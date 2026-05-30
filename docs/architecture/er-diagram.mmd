@@ -1,0 +1,138 @@
+%%{init: {'theme': 'base'}}%%
+
+erDiagram
+    %% ═══════════════════════════════════════════════
+    %%  PostgreSQL — Реляционная модель (users, sessions, audit, RBAC)
+    %% ═══════════════════════════════════════════════
+
+    users {
+        uuid id PK "UUID v4, первичный ключ"
+        varchar username UK "Уникальный логин"
+        varchar password_hash "bcrypt hash"
+        varchar full_name "ФИО пользователя"
+        varchar email UK "Email"
+        enum role "Руководитель | Аналитик | Гость"
+        varchar department "Отдел / подразделение"
+        int security_level "0-3: уровень допуска"
+        boolean is_active "Активен / заблокирован"
+        timestamp created_at "Дата создания"
+        timestamp updated_at "Дата обновления"
+    }
+
+    sessions {
+        uuid id PK "UUID v4"
+        uuid user_id FK "Ссылка на users.id"
+        jsonb messages "Массив сообщений [{role, content, ts}]"
+        jsonb metadata "Контекст: модель, параметры, rbac_filters"
+        varchar title "Автозаголовок сессии"
+        int message_count "Количество сообщений"
+        timestamp created_at "Дата создания"
+        timestamp last_activity "Последняя активность"
+        timestamp expires_at "TTL сессии"
+    }
+
+    audit_logs {
+        bigint id PK "Auto-increment"
+        uuid user_id FK "Ссылка на users.id"
+        varchar action "QUERY | LOGIN | INJECTION_ATTEMPT | EXPORT | ADMIN"
+        varchar query_hash "SHA-256 хэш запроса"
+        varchar ip_address "IP-адрес клиента"
+        int response_time_ms "Время ответа (мс)"
+        varchar trace_id "Jaeger trace ID"
+        jsonb details "Дополнительные данные (error, params)"
+        timestamp created_at "Время события"
+    }
+
+    rbac_policies {
+        uuid id PK "UUID v4"
+        enum role "Руководитель | Аналитик | Гость"
+        int max_security_level "Макс. уровень документов"
+        jsonb allowed_departments "Список разрешённых отделов"
+        jsonb allowed_actions "Разрешённые действия [query, export, admin]"
+        int rate_limit_rpm "Лимит запросов в минуту"
+        int max_tokens_per_query "Макс. токенов на запрос"
+        boolean can_view_sources "Доступ к исходным документам"
+        timestamp created_at "Дата создания"
+    }
+
+    users ||--o{ sessions : "создаёт"
+    users ||--o{ audit_logs : "генерирует"
+    users }o--|| rbac_policies : "имеет роль"
+
+    %% ═══════════════════════════════════════════════
+    %%  Neo4j — Граф знаний (показан как ER для наглядности)
+    %% ═══════════════════════════════════════════════
+
+    neo4j_Document {
+        string uid PK "Уникальный ID документа"
+        string title "Название документа"
+        string source "Источник: RusLawOD | RFSD | Internal"
+        string doc_type "Тип: закон | приказ | договор | memo"
+        int security_level "0-3: гриф секретности"
+        string department "Отдел-владелец"
+        string_array access_roles "Роли с доступом"
+        date published_date "Дата публикации"
+        date indexed_at "Дата индексации"
+        string content_hash "SHA-256 оригинала"
+    }
+
+    neo4j_Entity {
+        string uid PK "Уникальный ID сущности"
+        string name "Название (организация, персона, закон)"
+        string entity_type "Тип: Organization | Person | Law | Concept"
+        string canonical_name "Каноническое имя (для дедупликации)"
+        jsonb properties "Дополнительные свойства"
+        int security_level "Уровень секретности"
+    }
+
+    neo4j_Concept {
+        string uid PK "Уникальный ID концепции"
+        string name "Название концепции"
+        string domain "Домен: юриспруденция | финансы | HR"
+        string definition "Определение"
+    }
+
+    neo4j_Chunk {
+        string uid PK "ID чанка"
+        string document_uid FK "Ссылка на Document"
+        int chunk_index "Порядковый номер в документе"
+        string text "Текст чанка"
+        int token_count "Количество токенов"
+        string embedding_id "ID вектора в Qdrant"
+    }
+
+    neo4j_Document ||--o{ neo4j_Chunk : "CONTAINS"
+    neo4j_Document ||--o{ neo4j_Entity : "MENTIONS"
+    neo4j_Entity ||--o{ neo4j_Entity : "RELATED_TO"
+    neo4j_Entity }o--o{ neo4j_Concept : "BELONGS_TO"
+    neo4j_Concept ||--o{ neo4j_Concept : "PARENT_OF"
+
+    %% ═══════════════════════════════════════════════
+    %%  Qdrant — Векторные коллекции
+    %% ═══════════════════════════════════════════════
+
+    qdrant_documents_collection {
+        string point_id PK "UUID точки"
+        float_array vector "bge-m3 embedding (1024 dims)"
+        string document_uid "ID документа в Neo4j"
+        string chunk_uid "ID чанка в Neo4j"
+        string text_preview "Первые 200 символов чанка"
+        int security_level "RBAC: уровень секретности"
+        string department "RBAC: отдел"
+        string_array access_roles "RBAC: роли с доступом"
+        string source "Источник набора данных"
+        string doc_type "Тип документа"
+        date indexed_at "Дата индексации"
+    }
+
+    qdrant_entities_collection {
+        string point_id PK "UUID точки"
+        float_array vector "bge-m3 embedding (1024 dims)"
+        string entity_uid "ID сущности в Neo4j"
+        string entity_type "Тип сущности"
+        string name "Имя сущности"
+        int security_level "RBAC: уровень секретности"
+    }
+
+    neo4j_Chunk ||--|| qdrant_documents_collection : "векторизован в"
+    neo4j_Entity ||--o| qdrant_entities_collection : "векторизован в"

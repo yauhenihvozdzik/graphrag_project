@@ -1,0 +1,135 @@
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#d4a017'}}}%%
+
+flowchart TB
+    title["🔒 Security Architecture — RBAC + Guardrails"]
+    style title fill:none,stroke:none,font-size:18px
+
+    %% ═══════════════════════════════════════════════
+    %%  Users & Roles
+    %% ═══════════════════════════════════════════════
+
+    subgraph USERS["👥 Пользователи и роли"]
+        direction LR
+        U_MGR["👔 Руководитель<br/>security_level: 3<br/>actions: query, export, admin<br/>departments: ALL"]
+        U_ANL["📊 Аналитик<br/>security_level: 2<br/>actions: query, export<br/>departments: own + shared"]
+        U_GST["👁️ Гость<br/>security_level: 0<br/>actions: query (limited)<br/>departments: public only"]
+    end
+
+    %% ═══════════════════════════════════════════════
+    %%  Authentication Layer
+    %% ═══════════════════════════════════════════════
+
+    subgraph AUTH["🔑 Authentication Layer"]
+        direction TB
+        LOGIN["Login Endpoint<br/>POST /auth/login"]
+        JWT_ISSUE["JWT Token Issuance<br/>• Claims: user_id, role, department<br/>• Expiry: 1h (access) / 7d (refresh)<br/>• Algorithm: RS256"]
+        VAULT_KEYS["🔐 Vault<br/>JWT signing keys<br/>DB credentials<br/>API secrets"]
+
+        LOGIN --> JWT_ISSUE
+        JWT_ISSUE --> VAULT_KEYS
+    end
+
+    %% ═══════════════════════════════════════════════
+    %%  API Gateway Security
+    %% ═══════════════════════════════════════════════
+
+    subgraph GW_SEC["🔷 API Gateway Security"]
+        direction TB
+        TLS["🔒 TLS 1.3 Termination<br/>Self-signed cert (on-premise)"]
+        RATE["⏱️ Rate Limiting<br/>• Руководитель: 100 rpm<br/>• Аналитик: 60 rpm<br/>• Гость: 10 rpm"]
+        JWT_VAL["🎫 JWT Validation<br/>• Signature verification<br/>• Expiry check<br/>• Role extraction"]
+        IP_FILTER["🌐 IP Allowlist<br/>Только корпоративная сеть"]
+
+        TLS --> RATE --> JWT_VAL --> IP_FILTER
+    end
+
+    %% ═══════════════════════════════════════════════
+    %%  Input Guardrails
+    %% ═══════════════════════════════════════════════
+
+    subgraph INPUT_GR["🛡️ Input Guardrails"]
+        direction TB
+        PII_DET["🔍 PII Detection<br/>• Regex: ИНН, СНИЛС, паспорт, телефон<br/>• NER: имена, адреса<br/>• Action: BLOCK + LOG"]
+        INJ_DET["⚠️ Prompt Injection Detection<br/>• Pattern matching (jailbreak DB)<br/>• Semantic similarity check<br/>• Role override detection<br/>• Action: BLOCK + ALERT"]
+        LEN_VAL["📏 Input Validation<br/>• Max query length: 2000 chars<br/>• Max tokens: configurable per role<br/>• Encoding: UTF-8 only"]
+        SANITIZE["🧹 Input Sanitization<br/>• HTML/script stripping<br/>• Unicode normalization<br/>• SQL injection prevention"]
+
+        PII_DET --> INJ_DET --> LEN_VAL --> SANITIZE
+    end
+
+    %% ═══════════════════════════════════════════════
+    %%  RBAC Enforcement
+    %% ═══════════════════════════════════════════════
+
+    subgraph RBAC_CORE["🔐 RBAC Enforcement"]
+        direction TB
+        ROLE_CHECK["Role Check<br/>Проверка роли из JWT claims"]
+
+        subgraph FILTERS["Формирование фильтров"]
+            direction LR
+            F_SEC["Security Level Filter<br/>doc.security_level ≤ user.level"]
+            F_DEPT["Department Filter<br/>doc.department ∈ user.departments"]
+            F_ACTION["Action Filter<br/>user.action ∈ role.allowed_actions"]
+        end
+
+        QDRANT_F["Qdrant Filter<br/>metadata.security_level ≤ $level<br/>metadata.department IN $depts"]
+        NEO4J_F["Neo4j Filter<br/>WHERE n.security_level ≤ $level<br/>AND n.department IN $depts"]
+
+        ROLE_CHECK --> FILTERS
+        FILTERS --> QDRANT_F
+        FILTERS --> NEO4J_F
+    end
+
+    %% ═══════════════════════════════════════════════
+    %%  Output Guardrails
+    %% ═══════════════════════════════════════════════
+
+    subgraph OUTPUT_GR["🛡️ Output Guardrails"]
+        direction TB
+        LEAK_CHK["🔍 Data Leak Prevention<br/>• Проверка на confidential маркеры<br/>• Фильтрация внутренних ID/имён<br/>• Маскирование секретных данных"]
+        HALLUC["🧪 Hallucination Check<br/>• Cross-reference с source docs<br/>• Factual consistency scoring<br/>• Low confidence → disclaimer"]
+        CITE["📎 Citation Injection<br/>• Привязка к исходным документам<br/>• [Источник: название, §раздел]<br/>• Ссылки с учётом RBAC"]
+        AUDIT_LOG["📝 Audit Logging<br/>• user_id, query_hash<br/>• response_time, trace_id<br/>• security events → SIEM"]
+
+        LEAK_CHK --> HALLUC --> CITE --> AUDIT_LOG
+    end
+
+    %% ═══════════════════════════════════════════════
+    %%  Network Security
+    %% ═══════════════════════════════════════════════
+
+    subgraph NET_SEC["🌐 Network Segmentation"]
+        direction LR
+        DMZ["DMZ (172.20.0.0/24)<br/>• Frontend (port 3000)<br/>• API Gateway (port 443)<br/>• Grafana (port 3001)"]
+        INTERNAL["Internal (172.21.0.0/24)<br/>• Backend (port 8000)<br/>• Neo4j (port 7687)<br/>• Qdrant (port 6333)<br/>• Ollama (port 11434)<br/>• PostgreSQL (port 5432)<br/>• Vault (port 8200)"]
+        FIREWALL["🧱 Docker Network Isolation<br/>DMZ → Internal: only via Gateway<br/>Internal → DMZ: responses only<br/>External → Internal: BLOCKED"]
+
+        DMZ --- FIREWALL --- INTERNAL
+    end
+
+    %% ═══════════════════════════════════════════════
+    %%  Flow connections
+    %% ═══════════════════════════════════════════════
+
+    USERS --> AUTH
+    AUTH --> GW_SEC
+    GW_SEC --> INPUT_GR
+    INPUT_GR --> RBAC_CORE
+    RBAC_CORE -->|"Фильтры применяются к запросам в БД"| OUTPUT_GR
+    OUTPUT_GR -->|"Финальный ответ пользователю"| USERS
+
+    NET_SEC -.->|"Сетевая изоляция всех компонентов"| GW_SEC
+    VAULT_KEYS -.->|"Секреты для всех сервисов"| NET_SEC
+
+    %% ═══════════════════════════════════════════════
+    %%  Styles
+    %% ═══════════════════════════════════════════════
+
+    style USERS fill:#e8f0fe,stroke:#08427b,stroke-width:2px
+    style AUTH fill:#fef9e7,stroke:#d4a017,stroke-width:2px
+    style GW_SEC fill:#e8f8f5,stroke:#2694ab,stroke-width:2px
+    style INPUT_GR fill:#fdedec,stroke:#e05038,stroke-width:2px
+    style RBAC_CORE fill:#fef9e7,stroke:#d4a017,stroke-width:2px
+    style OUTPUT_GR fill:#fdedec,stroke:#e05038,stroke-width:2px
+    style NET_SEC fill:#e8f4fd,stroke:#1168bd,stroke-width:2px
+    style title fill:none,stroke:none

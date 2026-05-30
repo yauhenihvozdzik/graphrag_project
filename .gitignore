@@ -1,0 +1,141 @@
+# ══════════════════════════════════════════════
+# GraphRAG Platform — .gitignore
+# ══════════════════════════════════════════════
+
+# ─── Docker & Environment ──────────────────────
+docker-compose.override.yml
+.env.local
+.env.production
+*.env.backup
+
+# ─── Python ────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+eggs/
+dist/
+build/
+wheelhouse/
+*.egg
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env/
+
+# ─── IDEs & Editors ────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-workspace
+
+# ─── OS Files ──────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ─── Logs ──────────────────────────────────────
+logs/*.log
+logs/*.log.*
+*.log
+
+# ─── Data & Volumes ────────────────────────────
+data/
+volumes/
+*.db
+*.sqlite
+*.sqlite3
+
+# ─── Secrets & Credentials ─────────────────────
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+credentials.json
+service-account.json
+secrets.yaml
+secrets.yml
+
+# ─── Test & Upload Artifacts ───────────────────
+*.pdf
+!docs/**/*.pdf
+test_*.pdf
+
+# ─── Node / Frontend (if any build step added) ─
+node_modules/
+.npm/
+package-lock.json
+yarn.lock
+
+# ─── Jupyter Notebooks ─────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ─── Mypy / Type checking ──────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ─── Pyre ──────────────────────────────────────
+.pyre/
+.pyre_configuration
+
+# ─── Pytest ────────────────────────────────────
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# ─── Tox ───────────────────────────────────────
+.tox/
+.tox*
+
+# ─── Sphinx ────────────────────────────────────
+docs/_build/
+docs/_apidoc/
+
+# ─── MkDocs ────────────────────────────────────
+site/
+
+# ─── Ruff ──────────────────────────────────────
+.ruff_cache/
+
+# ─── Temporary files ───────────────────────────
+*.tmp
+*.temp
+*.bak
+*.cache
+*.orig
+
+# ─── Archive ───────────────────────────────────
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# ─── Monitoring data ───────────────────────────
+monitoring/grafana/data/
+monitoring/prometheus/data/
+monitoring/pgadmin/data/
+
+# ─── Misc ──────────────────────────────────────
+headers.txt

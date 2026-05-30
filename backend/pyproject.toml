@@ -1,0 +1,80 @@
+[project]
+name = "graphrag-platform"
+version = "1.0.0"
+description = "Защищённая платформа GraphRAG для корпоративных знаний"
+requires-python = ">=3.11"
+dependencies = [
+    # ── Web Framework ──
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "python-dotenv>=1.0.0",
+    "python-multipart>=0.0.9",
+
+    # ── LangGraph / LangChain ──
+    "langgraph>=0.2.0",
+    "langchain-core>=0.3.0",
+    "langchain-community>=0.3.0",
+
+    # ── Database ──
+    "sqlmodel>=0.0.21",
+    "psycopg2-binary>=2.9.0",
+    "psycopg[binary]>=3.2.0",
+    "psycopg-pool>=3.2.0",
+    "langgraph-checkpoint-postgres>=2.0.0",
+
+    # ── Neo4j ──
+    "neo4j>=5.20.0",
+
+    # ── Qdrant ──
+    "qdrant-client>=1.11.0",
+
+    # ── HTTP ──
+    "httpx>=0.27.0",
+
+    # ── Auth ──
+    "python-jose[cryptography]>=3.3.0",
+    "bcrypt>=4.0.0",
+    "pydantic[email]>=2.0.0",
+
+    # ── S3 / MinIO Storage ──
+    "boto3>=1.35.0",
+
+    # ── Logging ──
+    "structlog>=24.0.0",
+
+    # ── Metrics ──
+    "prometheus-client>=0.20.0",
+    "starlette-prometheus>=0.9.0",
+
+    # ── GPU Monitoring ──
+    "nvidia-ml-py>=12.0.0",
+
+    # ── Document Processing ──
+    "pymupdf>=1.24.0",
+    "python-docx>=1.1.0",
+]
+
+[project.optional-dependencies]
+otel = [
+    "opentelemetry-api>=1.25.0",
+    "opentelemetry-sdk>=1.25.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.25.0",
+    "opentelemetry-instrumentation-fastapi>=0.46b0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+    "ruff>=0.4.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
