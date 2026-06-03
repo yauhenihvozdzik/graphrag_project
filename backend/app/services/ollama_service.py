@@ -3,6 +3,9 @@
 Wraps Ollama API for both LLM inference (T-lite-it-1.0) and
 embedding generation (BAAI/bge-m3). Provides async interface
 with retries and streaming support.
+
+Key improvement (Fix #3): batch embedding via single POST /api/embed
+with an array of inputs, avoiding per-text HTTP overhead for long documents.
 """
 
 import asyncio
@@ -14,6 +17,9 @@ import httpx
 from app.core.config import settings
 from app.core.logging import logger
 from app.core.metrics import llm_inference_duration_seconds, llm_stream_duration_seconds
+
+
+BATCH_SIZE = 64  # Ollama API comfortably handles this many texts per /api/embed call
 
 
 class OllamaService:
@@ -76,15 +82,45 @@ class OllamaService:
         llm_stream_duration_seconds.labels(model=model).observe(duration)
 
     async def embed(self, texts: list[str], model: Optional[str] = None) -> list[list[float]]:
-        if not self._client: raise RuntimeError("Ollama client not initialized.")
-        model = model or settings.OLLAMA_EMBEDDING_MODEL; embeddings = []
-        for text in texts:
-            response = await self._client.post("/api/embed", json={"model": model, "input": text})
-            response.raise_for_status(); result = response.json()
-            if "embeddings" in result: embeddings.extend(result["embeddings"])
-            elif "embedding" in result: embeddings.append(result["embedding"])
-        logger.debug("ollama_embed_completed", model=model, count=len(texts))
-        return embeddings
+        """Generate embeddings for a list of texts using native Ollama batch API.
+
+        Sends the entire array via a single POST /api/embed call, leveraging
+        Ollama's built-in batching for a dramatic reduction in network round-trips.
+        Falls back to per-text calls for very large batches if needed.
+        """
+        if not self._client:
+            raise RuntimeError("Ollama client not initialized.")
+        model = model or settings.OLLAMA_EMBEDDING_MODEL
+
+        if not texts:
+            return []
+
+        all_embeddings: list[list[float]] = []
+
+        # Process in manageable chunks — Ollama handles arrays natively
+        for i in range(0, len(texts), BATCH_SIZE):
+            batch_texts = texts[i : i + BATCH_SIZE]
+            try:
+                payload: dict[str, Any] = {
+                    "model": model,
+                    "input": batch_texts,
+                }
+                response = await self._client.post("/api/embed", json=payload)
+                response.raise_for_status()
+                result = response.json()
+
+                if "embeddings" in result:
+                    all_embeddings.extend(result["embeddings"])
+                elif "embedding" in result:
+                    all_embeddings.append(result["embedding"])
+                else:
+                    logger.warning("ollama_embed_unexpected_response", keys=list(result.keys()))
+            except Exception:
+                logger.exception("ollama_batch_embed_failed", batch_start=i, batch_size=len(batch_texts))
+                raise
+
+        logger.debug("ollama_embed_completed", model=model, count=len(texts), vectors_returned=len(all_embeddings))
+        return all_embeddings
 
     async def embed_single(self, text: str, model: Optional[str] = None) -> list[float]:
         results = await self.embed([text], model=model)

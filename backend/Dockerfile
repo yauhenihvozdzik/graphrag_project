@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Python dependencies
 COPY backend/pyproject.toml ./
-RUN pip install --no-cache-dir -e ".[otel]" && pip install --no-cache-dir pytest pytest-asyncio pytest-timeout
+RUN pip install --no-cache-dir -e ".[otel]" && pip install --no-cache-dir pytest pytest-asyncio pytest-timeout && pip install --no-cache-dir alembic
 
 # Application code (backend)
 COPY backend/ .

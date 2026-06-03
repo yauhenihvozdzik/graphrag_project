@@ -2,7 +2,7 @@
 
 from typing import List, Optional
 from fastapi import HTTPException
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.pool import QueuePool
 from sqlmodel import Session, col, create_engine, select, func
 
@@ -23,24 +23,44 @@ class DatabaseService:
                 pool_size=settings.POSTGRES_POOL_SIZE, max_overflow=settings.POSTGRES_MAX_OVERFLOW,
                 pool_timeout=30, pool_recycle=1800,
             )
-            self._migrate_schema()
             logger.info("database_initialized", environment=settings.ENVIRONMENT.value, pool_size=settings.POSTGRES_POOL_SIZE)
         except SQLAlchemyError as e:
             logger.error("database_initialization_error", error=str(e))
             if settings.ENVIRONMENT != Environment.PRODUCTION: raise
 
-    def _migrate_schema(self):
-        """Ensure schema is up to date."""
-        from sqlmodel import SQLModel
-        SQLModel.metadata.create_all(self.engine, tables=[Department.__table__, FileMetadata.__table__])
-        from sqlalchemy import text
-        with self.engine.connect() as conn:
-            try:
-                conn.execute(text("ALTER TABLE chat_message ADD COLUMN IF NOT EXISTS sources TEXT"))
-                conn.commit()
-                logger.info("db_migration_applied")
-            except Exception as e:
-                logger.warning("db_migration_skip", error=str(e))
+    def run_migrations(self) -> None:
+        """Run Alembic migrations programmatically at startup.
+        
+        Falls back to SQLModel.metadata.create_all if Alembic is not installed
+        or the config file is missing. This guarantees tables exist in all
+        environments (dev, CI, production).
+        """
+        try:
+            from alembic.config import Config
+            from alembic import command
+            import os
+            # Path relative to this file: services/ → app/ → backend/
+            alembic_ini = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "alembic.ini")
+            if os.path.exists(alembic_ini):
+                alembic_cfg = Config(alembic_ini)
+                alembic_cfg.set_main_option("sqlalchemy.url", settings.postgres_dsn)
+                command.upgrade(alembic_cfg, "head")
+                logger.info("alembic_migrations_applied")
+                return
+            else:
+                logger.warning("alembic_ini_not_found_fallback", path=alembic_ini)
+        except ImportError:
+            logger.info("alembic_not_installed_fallback_to_create_all")
+        except Exception as e:
+            logger.warning("alembic_migration_failed_fallback", error=str(e))
+        
+        # Fallback: create tables via SQLModel metadata
+        try:
+            from sqlmodel import SQLModel
+            SQLModel.metadata.create_all(self.engine)
+            logger.info("sqlmodel_create_all_fallback_applied")
+        except Exception as e:
+            logger.exception("db_table_creation_failed", error=str(e))
 
     # ─── Users ───
 

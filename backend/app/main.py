@@ -3,10 +3,11 @@
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 from app.api.v1.api import api_router
 from app.core.config import settings
@@ -42,13 +43,11 @@ async def lifespan(app: FastAPI):
     try:
         from app.core.langgraph.memory import graphrag_memory; await graphrag_memory.initialize()
     except Exception as e: logger.exception("graphrag_memory_init_failed", error=str(e))
+    # ── Run Alembic migrations (replaces raw SQLModel.create_all for safer concurrent deploys) ──
     try:
-        from sqlmodel import SQLModel
-        from app.models.message import ChatMessage
         from app.services.database import database_service
-        SQLModel.metadata.create_all(database_service.engine)
-        logger.info("chat_message_table_created")
-    except Exception as e: logger.exception("chat_message_table_failed", error=str(e))
+        database_service.run_migrations()
+    except Exception as e: logger.exception("db_migrations_failed", error=str(e))
     # Auto-seed departments on startup
     try:
         _seed_departments()
@@ -142,7 +141,10 @@ def _seed_departments():
 
 
 def _seed_demo_users():
-    """Seed demo users (admin, analyst, viewer) if not present."""
+    """Seed demo users (admin, analyst, viewer) if not present.
+
+    Uses specific exception handling for uniqueness violations instead of bare except.
+    """
     from app.services.database import database_service
     demo_users = [
         ("admin@graphrag.local", "Admin123!", "admin", "admin", "all", 3),
@@ -156,8 +158,14 @@ def _seed_demo_users():
             continue
         try:
             u = database_service.create_user(email=email, password=password, username=username)
-        except Exception:
-            # Race condition — user already created between check and insert
+        except HTTPException as e:
+            if e.status_code == 409:
+                logger.info("demo_user_already_exists", email=email)
+                continue
+            raise
+        except IntegrityError:
+            # Race condition — duplicate key between check and insert
+            logger.info("demo_user_integrity_race", email=email)
             continue
         database_service.update_user(user_id=u.id, updates={
             "role": role,

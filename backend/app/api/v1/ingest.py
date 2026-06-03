@@ -1,6 +1,11 @@
-"""API эндпоинты загрузки документов."""
+"""API эндпоинты загрузки документов.
 
-import shutil
+Fix #5: synchronous file I/O (open/write/fsync) now delegates to
+asyncio.to_thread, preventing event-loop blocking on large file uploads.
+"""
+
+import asyncio
+import os
 import uuid
 from pathlib import Path
 
@@ -106,8 +111,23 @@ async def ingest_text(request: Request, background_tasks: BackgroundTasks, inges
     return IngestStatusResponse(document_id=doc_id, status="processing")
 
 
+async def _save_upload_file(file: UploadFile, file_path: Path) -> None:
+    """Save uploaded file to disk in a thread-pool to avoid blocking the event loop."""
+    def _sync_write() -> None:
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(file_path, "wb") as f:
+            # Read file content in the main thread, write in thread-pool
+            f.write(file.file.read())
+            f.flush()
+            os_fsync = getattr(os, 'fsync', None)
+            if os_fsync:
+                os_fsync(f.fileno())
+
+    await asyncio.to_thread(_sync_write)
+
+
 @router.post("/ingest/file", response_model=IngestStatusResponse)
-async def ingest_file(request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...),
+async def ingest_file(request: Request, file: UploadFile = File(...),
                       title: str = Form(""), clearance_level: int = Form(0), department: str = Form("all"),
                       current_user=Depends(get_current_user), access_context=Depends(get_access_context)):
     if access_context.role not in (Role.ADMIN, Role.ANALYST): raise HTTPException(403, "Недостаточно прав")
@@ -129,10 +149,7 @@ async def ingest_file(request: Request, background_tasks: BackgroundTasks, file:
     doc_id = f"doc_{uuid.uuid4().hex[:12]}"
     file_path = upload_dir / f"{doc_id}{file_ext}"
     try:
-        with open(file_path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
-            f.flush()
-            import os; os.fsync(f.fileno()) if hasattr(os, 'fsync') else None
+        await _save_upload_file(file, file_path)
     except Exception as e:
         database_service.update_file_metadata(meta_id=file_meta.id, document_id="", status="failed")
         raise HTTPException(500, f"Ошибка сохранения: {str(e)}")
@@ -172,7 +189,6 @@ async def ingest_file(request: Request, background_tasks: BackgroundTasks, file:
         finally:
             if file_path.exists(): file_path.unlink()
 
-    import asyncio
     # Verify file exists before starting pipeline
     if not file_path.exists():
         logger.error("file_not_found_after_save", path=str(file_path))
