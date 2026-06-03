@@ -72,10 +72,3 @@ CLEARANCE_LEVELS = {
     3: "Сов. секретно",
 }
 
-# ── Отделы ──
-DEPARTMENTS = {
-    "all": "Все",
-    "legal": "Юридический",
-    "research": "Исследования",
-    "management": "Управление",
-}
