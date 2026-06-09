@@ -800,8 +800,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     $('#ingest-submit-btn').onclick = async () => {
+        const btn = $('#ingest-submit-btn');
+        if (btn.disabled) return; // already uploading
+
         const cl = $('#ingest-clearance').value;
         const dp = $('#ingest-department').value;
+
+        // Block double-submit
+        btn.disabled = true;
+        btn.textContent = '⏳ Загрузка...';
 
         try {
             if (ci === 'text') {
@@ -810,6 +817,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (!tx) {
                     alert('Введите текст');
+                    btn.disabled = false;
+                    btn.textContent = 'Загрузить';
                     return;
                 }
 
@@ -836,6 +845,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (ci === 'file') {
                 if (!selFiles.length) {
                     alert('Выберите файлы');
+                    btn.disabled = false;
+                    btn.textContent = 'Загрузить';
                     return;
                 }
 
@@ -1002,6 +1013,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (!u) {
                     alert('Введите URL');
+                    btn.disabled = false;
+                    btn.textContent = 'Загрузить';
                     return;
                 }
 
@@ -1028,6 +1041,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (e) {
             toast(`✗ ${e.message}`, 'error');
+        } finally {
+            // Re-enable button and clear file selection
+            btn.disabled = false;
+            btn.textContent = 'Загрузить';
+            if (ci === 'file') {
+                clearFiles();
+            }
         }
     };
 
