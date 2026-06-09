@@ -68,7 +68,12 @@ class Settings:
             if val: self.RATE_LIMIT_ENDPOINTS[ep] = val
         self.CHUNK_SIZE = int(os.getenv("CHUNK_SIZE","512")); self.CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP","64"))
         self.ENTITY_EXTRACTION_BATCH_SIZE = int(os.getenv("ENTITY_EXTRACTION_BATCH_SIZE","5")); self.GRAPH_COMMUNITY_ALGORITHM = os.getenv("GRAPH_COMMUNITY_ALGORITHM","louvain")
-        self.RERANKER_TOP_K = int(os.getenv("RERANKER_TOP_K","5"))
+        self.RERANKER_TOP_K = int(os.getenv("RERANKER_TOP_K","10"))
+        # Динамический top_k: минимальное и максимальное количество результатов поиска
+        self.RERANKER_MIN_RESULTS = int(os.getenv("RERANKER_MIN_RESULTS","10"))
+        self.RERANKER_MAX_RESULTS = int(os.getenv("RERANKER_MAX_RESULTS","50"))
+        # Масштабирующий коэффициент для динамического top_k (умножается на плотность графа)
+        self.RERANKER_SCALE_FACTOR = float(os.getenv("RERANKER_SCALE_FACTOR","8.0"))
         self.SMTP_HOST = os.getenv("SMTP_HOST","localhost"); self.SMTP_PORT = os.getenv("SMTP_PORT","1025"); self.SMTP_USER = os.getenv("SMTP_USER","")
         self.SMTP_PASSWORD = os.getenv("SMTP_PASSWORD",""); self.SMTP_USE_TLS = os.getenv("SMTP_USE_TLS","true")
         self.S3_ENDPOINT = os.getenv("S3_ENDPOINT","http://localhost:9000"); self.S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY","minioadmin")

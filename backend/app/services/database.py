@@ -209,6 +209,18 @@ class DatabaseService:
                 s.commit()
                 logger.info("file_metadata_deleted", document_id=document_id, count=len(rows))
 
+    def clear_all_file_metadata(self) -> int:
+        """Remove ALL file_metadata records. Used by 'clear all' operation."""
+        with Session(self.engine) as s:
+            rows = s.exec(select(FileMetadata)).all()
+            count = len(rows)
+            for r in rows:
+                s.delete(r)
+            if rows:
+                s.commit()
+            logger.info("file_metadata_cleared_all", count=count)
+            return count
+
     # ─── Sessions & Messages ───
 
     def create_session(self, session_id: str, user_id: int, username: Optional[str] = None) -> ChatSession:

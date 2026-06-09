@@ -101,8 +101,15 @@ async def clear_graph_data(current_user=Depends(get_current_user)):
         for doc_id in doc_ids:
             try: s3_service.delete_document(doc_id)
             except Exception: pass
+        # Clear file_metadata table in PostgreSQL (dedup check source)
+        try:
+            from app.services.database import database_service
+            cleared_meta = database_service.clear_all_file_metadata()
+            logger.info("file_metadata_cleared", count=cleared_meta)
+        except Exception as e:
+            logger.warning("file_metadata_clear_failed", error=str(e))
         logger.info("graph_cleared", user_id=current_user["user_id"], s3_docs=len(doc_ids))
-        return {"success": True, "message": f"Граф, векторы и S3 очищены ({len(doc_ids)} док.)"}
+        return {"success": True, "message": f"Граф, векторы, S3 и метаданные файлов очищены ({len(doc_ids)} док.)"}
     except Exception as e: logger.exception("clear_failed", error=str(e)); raise HTTPException(500, str(e))
 
 
@@ -146,17 +153,20 @@ async def download_document(doc_id: str, current_user=Depends(get_current_user))
             if s3_original:
                 try:
                     content_bytes, content_type, _ = s3_service.get_original(doc_id, s3_original_key=s3_original)
-                    safe_filename = orig_fname if orig_fname else f"{title}.bin"
-                    from urllib.parse import quote
-                    encoded = quote(safe_filename)
-                    logger.info("download_source", doc_id=doc_id, source="minio-original")
-                    return Response(
-                        content=content_bytes,
-                        media_type=content_type,
-                        headers={
-                            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded}",
-                            "X-Download-Source": "minio-original",
-                        })
+                    if content_bytes and len(content_bytes) > 0:
+                        safe_filename = orig_fname if orig_fname else f"{title}.bin"
+                        from urllib.parse import quote
+                        encoded = quote(safe_filename)
+                        logger.info("download_source", doc_id=doc_id, source="minio-original", size=len(content_bytes))
+                        return Response(
+                            content=content_bytes,
+                            media_type=content_type,
+                            headers={
+                                "Content-Disposition": f"attachment; filename*=UTF-8''{encoded}",
+                                "X-Download-Source": "minio-original",
+                            })
+                    else:
+                        logger.warning("original_file_empty", doc_id=doc_id, key=s3_original)
                 except Exception as e:
                     logger.warning("original_file_fallback", doc_id=doc_id, error=str(e))
 
@@ -164,30 +174,43 @@ async def download_document(doc_id: str, current_user=Depends(get_current_user))
             if s3:
                 try:
                     content_bytes = s3_service.get_document(doc_id)
-                    content = content_bytes.decode("utf-8")
-                    logger.info("download_source", doc_id=doc_id, source="s3")
-                    return _make_download_response(content, title, "minio-s3")
+                    if content_bytes and len(content_bytes) > 0:
+                        content = content_bytes.decode("utf-8")
+                        if content.strip():
+                            logger.info("download_source", doc_id=doc_id, source="s3", size=len(content_bytes))
+                            return _make_download_response(content, title, "minio-s3")
+                        else:
+                            logger.warning("s3_content_empty", doc_id=doc_id)
+                    else:
+                        logger.warning("s3_file_empty", doc_id=doc_id)
                 except Exception as e:
                     logger.warning("s3_fallback", doc_id=doc_id, error=str(e))
 
-            # Уровень 2: Neo4j full_text
-            if ft:
-                logger.info("download_source", doc_id=doc_id, source="neo4j_full_text")
+            # Уровень 3: Neo4j full_text
+            if ft and ft.strip():
+                logger.info("download_source", doc_id=doc_id, source="neo4j_full_text", size=len(ft))
                 return _make_download_response(ft, title, "neo4j-full_text")
 
-            # Уровень 3: Сборка из чанков
+            # Уровень 4: Сборка из чанков
             cr = await session.run(
                 "MATCH (d:Document {id:$id})<-[:PART_OF]-(c:Chunk) RETURN c.text AS text ORDER BY c.position",
                 id=doc_id)
             chunk_records = await cr.data()
-            chunk_texts = [r["text"] for r in chunk_records if r.get("text")]
+            chunk_texts = [r["text"] for r in chunk_records if r.get("text") and r["text"].strip()]
             if chunk_texts:
                 logger.info("download_source", doc_id=doc_id, source="neo4j_chunks", chunks=len(chunk_texts))
                 return _make_download_response("\n\n".join(chunk_texts), title, "neo4j-chunks")
 
-            logger.error("download_empty", doc_id=doc_id, has_s3=bool(s3), has_ft=bool(ft),
-                         chunks=len(chunk_texts) if chunk_texts else 0)
-            raise HTTPException(404, "Содержимое документа не найдено")
+            # Документ пуст — возвращаем текстовый файл с пояснением
+            logger.info("download_empty_return_placeholder", doc_id=doc_id, title=title)
+            return _make_download_response(
+                "Документ не содержит текстового содержимого.\n\n"
+                "Этот файл был загружен как мета-запись без извлекаемого текста "
+                "(например, пустой файл, бинарный файл без текстового слоя, "
+                "или файл нулевого размера).",
+                title,
+                "empty-document"
+            )
     except HTTPException:
         raise
     except Exception as e:

@@ -82,7 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ─── Toast Notification System ──────────────
-    function toast(m, t = 'info') {
+    // sticky mode — toast stays until manually dismissed (for ingest progress)
+    // non-sticky mode — auto-fades after duration based on type
+    function toast(m, t = 'info', opts = {}) {
         let stack = $('#toast-stack');
         if (!stack) {
             stack = document.createElement('div');
@@ -113,15 +115,39 @@ document.addEventListener('DOMContentLoaded', () => {
         const color = colorMap[t] || 'var(--text)';
         el.style.color = color;
 
+        const isSticky = opts.sticky === true;
+
         el.innerHTML =
             `<span class="toast-msg">${m}</span>` +
             `<button class="toast-close" style="background:none;border:none;` +
             `color:var(--text-muted);cursor:pointer;font-size:1.1rem;` +
             `line-height:1;padding:0;flex-shrink:0;">×</button>`;
 
-        el.querySelector('.toast-close').onclick = () => {
-            el.remove();
-        };
+        const closeBtn = el.querySelector('.toast-close');
+
+        // Shared dismiss helper
+        function dismiss() {
+            if (el._dismissed) return;
+            el._dismissed = true;
+            if (el._dismissTimer) clearTimeout(el._dismissTimer);
+            el.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            el.style.opacity = '0';
+            el.style.transform = 'translateX(30px)';
+            setTimeout(() => el.remove(), 300);
+        }
+
+        closeBtn.onclick = () => dismiss();
+        el._dismiss = dismiss;
+
+        // Store sticky flag for updT logic
+        el._sticky = isSticky;
+
+        // Non-sticky: auto-dismiss after duration
+        if (!isSticky) {
+            const durations = { success: 4000, error: 7000, warning: 5000, info: 4500 };
+            const dur = opts.duration || durations[t] || 4500;
+            el._dismissTimer = setTimeout(() => dismiss(), dur);
+        }
 
         stack.appendChild(el);
         return el;
@@ -141,32 +167,50 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const color = colorMap[t] || 'var(--text)';
         el.style.color = color;
+
+        // When a sticky toast transitions to success/error/warning — schedule auto-dismiss
+        if (el._sticky && (t === 'success' || t === 'error' || t === 'warning')) {
+            el._sticky = false;
+            const dur = (t === 'error') ? 8000 : 5000;
+            el._dismissTimer = setTimeout(() => {
+                if (el._dismiss) el._dismiss();
+            }, dur);
+        }
     }
 
     // ─── Ingest Status Polling ──────────────────
-    async function poll(d, t, ok, er) {
-        for (let i = 0; i < 60; i++) {
-            await new Promise((r) => setTimeout(r, 2000));
+    // STEP_LABELS maps step_name to a user-friendly system label
+    const STEP_LABELS = {
+        'starting': '🚀 Запуск',
+        'uploading': '📤 Загрузка в S3',
+        'extraction': '🔍 Извлечение сущностей',
+        'graph': '🕸️ Граф знаний',
+        'vectors': '🧮 Векторизация',
+    };
+
+    function stepLabel(name) {
+        return STEP_LABELS[name] || `⏳ ${name}`;
+    }
+
+    // Returns {status, phaseLabel} — phaseLabel is updated on each poll cycle
+    async function pollPhase(docId) {
+        for (let i = 0; i < 90; i++) {
+            await new Promise((r) => setTimeout(r, 1500));
             try {
-                const s = await api.getIngestStatus(d);
+                const s = await api.getIngestStatus(docId);
                 if (s.status === 'completed') {
-                    ok?.(d);
-                    return 'ok';
+                    return { status: 'ok', phaseLabel: '✅ Завершён' };
                 }
                 if (s.status === 'failed') {
-                    er?.(s.error);
-                    return 'error';
+                    return { status: 'error', phaseLabel: `❌ ${s.error || 'Ошибка'}` };
                 }
-                const hasStep = typeof s.step === 'number' && s.step >= 0;
-                const progress = hasStep
-                    ? `[${s.step}/${s.total_steps}] ${s.step_name}: ${s.message || ''}`
-                    : `⏳ ${s.message || '...'}`;
-                updT(t, progress, 'info');
+                const label = stepLabel(s.step_name || '');
+                return { status: 'processing', phaseLabel: label };
             } catch {
-                return 'error';
+                return { status: 'error', phaseLabel: '❌ Ошибка сети' };
             }
         }
-        return 'timeout';
+        return { status: 'timeout', phaseLabel: '⏱️ Таймаут' };
     }
 
     // ─── Document Download ──────────────────────
@@ -795,51 +839,163 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                const progressToast = toast(
-                    `⏳ ${selFiles.length} файлов...`,
-                    'info'
-                );
+                const CONCURRENCY = 3; // одновременных загрузок
+                const totalFiles = selFiles.length;
+
+                // Сводный тост с прогрессом всех файлов
+                const summaryToast = toast('⏳ Подготовка...', 'info', { sticky: true });
+                
                 let okCount = 0;
                 let failCount = 0;
+                let completedCount = 0;
+                let nextIndex = 0;
+                const resultsLog = []; // {name, status, error, time}
 
-                for (const f of selFiles) {
-                    updT(progressToast, `⏳ ${f.name}...`, 'info');
-                    try {
-                        const r = await api.ingestFile(f, cl, dp);
-                        const res = await poll(r.document_id, progressToast);
+                function updateSummary() {
+                    const done = okCount + failCount;
+                    const remaining = totalFiles - done;
+                    updT(summaryToast,
+                        `📊 ${done}/${totalFiles} (${okCount} ✓, ${failCount} ✗)${remaining > 0 ? ` · в очереди ${remaining}` : ''}`,
+                        'info');
+                }
 
-                        if (res === 'ok') {
+                // Обработка одного файла с повторными попытками при сетевых ошибках
+                async function processOne(file) {
+                    const startTime = new Date();
+
+                    let docId;
+                    // Retry upload до 2 раз
+                    for (let uploadAttempt = 0; uploadAttempt < 2; uploadAttempt++) {
+                        try {
+                            const r = await api.ingestFile(file, cl, dp);
+                            docId = r.document_id;
+                            break;
+                        } catch (e) {
+                            if (uploadAttempt === 1) {
+                                const endTime = new Date();
+                                resultsLog.push({ name: file.name, status: '❌ Ошибка загрузки', error: e.message, time: (endTime - startTime) / 1000 });
+                                return { ok: false, error: e.message };
+                            }
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
+                    }
+
+                    // Poll статуса с retry при временных сетевых ошибках
+                    const maxPolls = 90;
+                    const pollInterval = 1500;
+                    let consecutiveErrors = 0;
+                    const maxConsecutiveErrors = 5;
+
+                    for (let i = 0; i < maxPolls; i++) {
+                        await new Promise(r => setTimeout(r, pollInterval));
+                        try {
+                            const s = await api.getIngestStatus(docId);
+                            consecutiveErrors = 0; // сброс счётчика ошибок
+                            if (s.status === 'completed') {
+                                const endTime = new Date();
+                                resultsLog.push({ name: file.name, status: '✅ Успех', error: null, time: (endTime - startTime) / 1000 });
+                                return { ok: true };
+                            }
+                            if (s.status === 'failed') {
+                                const endTime = new Date();
+                                const errMsg = s.error || 'Неизвестная ошибка';
+                                resultsLog.push({ name: file.name, status: '❌ Ошибка обработки', error: errMsg, time: (endTime - startTime) / 1000 });
+                                return { ok: false, error: errMsg };
+                            }
+                        } catch {
+                            consecutiveErrors++;
+                            if (consecutiveErrors >= maxConsecutiveErrors) {
+                                const endTime = new Date();
+                                resultsLog.push({ name: file.name, status: '❌ Ошибка сети', error: `Нет ответа от сервера (${consecutiveErrors} попыток подряд)`, time: (endTime - startTime) / 1000 });
+                                return { ok: false, error: 'Сетевые ошибки при опросе статуса' };
+                            }
+                            // Уменьшаем интервал между retry при ошибках
+                            await new Promise(r => setTimeout(r, 500));
+                        }
+                    }
+                    const endTime = new Date();
+                    resultsLog.push({ name: file.name, status: '⏱️ Таймаут', error: 'Превышено время ожидания (90×1.5с)', time: (endTime - startTime) / 1000 });
+                    return { ok: false, error: 'Таймаут обработки' };
+                }
+
+                // Динамическая очередь: как только файл завершается — запускается следующий
+                async function runDynamicQueue() {
+                    const slots = new Array(CONCURRENCY).fill(null); // null = свободен
+                    
+                    for (let i = 0; i < CONCURRENCY && i < totalFiles; i++) {
+                        slots[i] = processOne(selFiles[i]);
+                        nextIndex = i + 1;
+                    }
+
+                    while (completedCount < totalFiles) {
+                        const donePromises = slots.map((p, idx) => p ? p.then(r => ({ idx, r })) : null).filter(Boolean);
+                        const { idx: finishedIdx, r: result } = await Promise.race(donePromises);
+                        
+                        completedCount++;
+                        if (result.ok) {
                             okCount++;
                         } else {
                             failCount++;
                         }
-                    } catch (e) {
-                        failCount++;
-                        const isWarning =
-                            e.message &&
-                            (e.message.includes('уже загружен') ||
-                                e.message.includes('409'));
-                        updT(
-                            progressToast,
-                            `✗ ${f.name}: ${e.message}`,
-                            isWarning ? 'warning' : 'error'
-                        );
+                        updateSummary();
+
+                        if (nextIndex < totalFiles) {
+                            slots[finishedIdx] = processOne(selFiles[nextIndex]);
+                            nextIndex++;
+                        } else {
+                            slots[finishedIdx] = null;
+                        }
                     }
                 }
 
-                if (failCount === 0) {
-                    updT(progressToast, `✓ Все ${okCount} файлов`, 'success');
-                    resetIngestForm();
-                } else if (selFiles.length === 1) {
-                    // Single file failure already shown via per-file catch
-                } else {
-                    updT(
-                        progressToast,
-                        `⚠ ${okCount} ok, ${failCount} ошибок`,
-                        'warning'
-                    );
+                await runDynamicQueue();
+
+                // ── Generate and download upload log ──
+                try {
+                    const now = new Date();
+                    const dateStr = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                    const logLines = [
+                        `=== Лог загрузки файлов — ${now.toLocaleString('ru-RU')} ===`,
+                        `Всего файлов: ${totalFiles}`,
+                        `Успешно: ${okCount}`,
+                        `С ошибками: ${failCount}`,
+                        ``,
+                        `--- Пофайловый отчёт ---`,
+                    ];
+                    for (const entry of resultsLog) {
+                        const timeStr = entry.time != null ? ` (${entry.time.toFixed(1)}с)` : '';
+                        logLines.push(`[${entry.status}] ${entry.name}${timeStr}`);
+                        if (entry.error) {
+                            logLines.push(`  Причина: ${entry.error}`);
+                        }
+                    }
+                    logLines.push('');
+                    logLines.push('=== Конец лога ===');
+
+                    const logText = logLines.join('\n');
+                    const blob = new Blob([logText], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `upload-log-${dateStr}.txt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } catch (logErr) {
+                    // Non-critical — don't interrupt the flow
+                    console.warn('Failed to generate upload log', logErr);
                 }
-                setTimeout(() => progressToast?.remove(), 6000);
+
+                // Финальный статус
+                if (failCount === 0) {
+                    updT(summaryToast, `✅ Все ${okCount} файлов загружены · лог скачан`, 'success');
+                    resetIngestForm();
+                } else if (failCount === totalFiles) {
+                    updT(summaryToast, `❌ Все ${failCount} файлов с ошибкой · лог скачан`, 'error');
+                } else {
+                    updT(summaryToast, `⚠️ ${okCount} загружено, ${failCount} с ошибками · лог скачан`, 'warning');
+                }
             } else if (ci === 'url') {
                 const u = $('#ingest-url').value.trim();
                 const ti = $('#url-title').value.trim();
@@ -969,11 +1125,44 @@ document.addEventListener('DOMContentLoaded', () => {
             const stats = $('#graph-stats');
 
             if (stats) {
+                const btnHtml = '<button id="clear-all-btn" class="btn btn-sm" style="margin-left:auto;color:var(--error);border-color:var(--error);" title="Удалить ВСЕ документы, граф, векторы и S3">🗑️ Очистить всё</button>';
                 stats.innerHTML =
                     `<span>📊 Узлы: ${g.node_count ?? '—'}</span>` +
                     `<span>🔗 Связи: ${g.edge_count ?? '—'}</span>` +
                     `<span>📄 Документы: ${g.documents ?? '—'}</span>` +
-                    `<span>🧩 Сущности: ${g.entities ?? '—'}</span>`;
+                    `<span>🧩 Сущности: ${g.entities ?? '—'}</span>` +
+                    btnHtml;
+                // Bind clear-all button after DOM update
+                const clearBtn = stats.querySelector('#clear-all-btn');
+                if (clearBtn) {
+                    clearBtn.onclick = async () => {
+                        const ok = await modal(
+                            '🗑️ Очистить все данные',
+                            'Вы уверены? Это действие НЕОБРАТИМО.\n\n' +
+                            'Будут удалены:\n' +
+                            '• Все документы из Neo4j\n' +
+                            '• Все векторы из Qdrant\n' +
+                            '• Все файлы из MinIO S3\n' +
+                            '• Все сущности и связи графа знаний\n\n' +
+                            'После очистки страница будет перезагружена.'
+                        );
+                        if (!ok) return;
+
+                        const progressToast = toast('⏳ Очистка всех данных...', 'info', { sticky: true });
+                        try {
+                            const result = await api.clearGraphData();
+                            updT(progressToast, `✅ ${result.message || 'Данные очищены'}`, 'success');
+                            // Reload after a short delay
+                            setTimeout(() => {
+                                dPage = 1;
+                                loadDocs();
+                                loadGraphStats();
+                            }, 1500);
+                        } catch (e) {
+                            updT(progressToast, `❌ ${e.message}`, 'error');
+                        }
+                    };
+                }
             }
         } catch (e) {
             // Stats are non-critical; silently fail

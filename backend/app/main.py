@@ -21,6 +21,48 @@ from app.core.observability import instrument_fastapi, setup_opentelemetry
 load_dotenv()
 
 
+async def _backfill_document_full_text():
+    """One-time backfill: assemble full_text for existing documents from their chunks."""
+    try:
+        from app.services.neo4j_service import neo4j_service
+    except Exception:
+        return
+    try:
+        async with neo4j_service.session() as s:
+            # Найти документы без full_text
+            result = await s.run(
+                "MATCH (d:Document) WHERE d.full_text IS NULL OR d.full_text = '' "
+                "RETURN d.id AS doc_id, d.title AS title"
+            )
+            records = await result.data()
+            if not records:
+                logger.info("backfill_full_text_no_missing_docs")
+                return
+            updated = 0
+            for rec in records:
+                doc_id = rec["doc_id"]
+                # Собрать текст из чанков
+                cr = await s.run(
+                    "MATCH (d:Document {id: $doc_id})<-[:PART_OF]-(c:Chunk) "
+                    "RETURN c.text AS text ORDER BY c.position",
+                    doc_id=doc_id,
+                )
+                chunks = await cr.data()
+                if chunks:
+                    full_text = "\n\n".join(
+                        c["text"] for c in chunks if c.get("text") and c["text"].strip()
+                    )
+                    if full_text:
+                        await s.run(
+                            "MATCH (d:Document {id: $doc_id}) SET d.full_text = $full_text",
+                            doc_id=doc_id, full_text=full_text,
+                        )
+                        updated += 1
+            logger.info("backfill_full_text_completed", missing=len(records), updated=updated)
+    except Exception as e:
+        logger.exception("backfill_full_text_failed", error=str(e))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("application_startup", project_name=settings.PROJECT_NAME, version=settings.VERSION, environment=settings.ENVIRONMENT.value)
@@ -56,6 +98,10 @@ async def lifespan(app: FastAPI):
     try:
         _seed_demo_users()
     except Exception as e: logger.exception("demo_users_seed_failed", error=str(e))
+    # Backfill full_text for existing documents from chunks
+    try:
+        await _backfill_document_full_text()
+    except Exception as e: logger.exception("backfill_full_text_failed", error=str(e))
     yield
     logger.info("application_shutdown_started")
     try:
