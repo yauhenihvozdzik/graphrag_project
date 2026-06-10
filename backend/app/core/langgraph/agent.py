@@ -14,8 +14,8 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from app.core.config import settings
+from app.core.constants import STOP_TOKENS
 from app.core.logging import logger
-from app.core.prompts import STOP_TOKENS
 from app.core.security.guardrails import guardrails_service
 from app.core.security.rbac import AccessContext, ClearanceLevel, Role
 from app.core.langgraph.agent_utils import (
@@ -363,7 +363,7 @@ class GraphRAGAgent:
         # Генерируем ответ с повышенной температурой для богатства языка
         response = await ollama_service.chat(
             messages=chat_messages,
-            temperature=0.3,
+            temperature=0.1,
             options={
                 "num_predict": max(settings.MAX_TOKENS, 4096),  # больше токенов для развёрнутых ответов
                 "stop": STOP_TOKENS,
@@ -519,7 +519,7 @@ class GraphRAGAgent:
         # Стримим генерацию с повышенной температурой для богатства языка
         async for chunk in ollama_service.chat_stream(
             messages=chat_messages, 
-            temperature=0.3,
+            temperature=0.1,
             options={
                 "num_predict": max(settings.MAX_TOKENS, 4096),
                 "stop": STOP_TOKENS,

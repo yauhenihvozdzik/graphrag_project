@@ -7,9 +7,10 @@
 
 import re
 
+from app.core.constants import GRAPH_QUERY_KEYWORDS
 from app.core.prompts import (
     SYSTEM_PROMPT, NO_CONTEXT_MESSAGE, CONTEXT_HEADER,
-    GRAPH_QUERY_KEYWORDS, SPELLING_CORRECTION_PROMPT,
+    SPELLING_CORRECTION_PROMPT,
 )
 
 

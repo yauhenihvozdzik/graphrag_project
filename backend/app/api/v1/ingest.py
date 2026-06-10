@@ -13,7 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 
 from app.api.v1.auth import get_access_context, get_current_user
 from app.core.config import settings
-from app.core.prompts import ALLOWED_FILE_EXTENSIONS
+from app.core.constants import ALLOWED_FILE_EXTENSIONS
 from app.core.graphrag.document_ingestion import ingestion_service
 from app.core.graphrag.entity_extraction import entity_extraction_service
 from app.core.graphrag.graph_builder import graph_builder_service
