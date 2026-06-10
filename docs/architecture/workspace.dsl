@@ -4,41 +4,35 @@ workspace "GraphRAG Platform" "Защищённая платформа GraphRAG 
 
     model {
         # ─── Внешние пользователи и системы ───────────────────────────────
-        analyst = person "Аналитик" "Формирует аналитические запросы к базе знаний" "Analyst"
-        manager = person "Руководитель" "Принимает решения на основе данных платформы" "Manager"
-        guest   = person "Гость" "Ограниченный доступ только для чтения" "Guest"
+        viewer  = person "Viewer" "Просмотр документов только своего отдела" "Viewer"
+        analyst = person "Аналитик" "Загрузка документов, аналитические запросы" "Analyst"
+        admin   = person "Администратор" "Полный доступ: пользователи, отделы, тесты, инфраструктура" "Admin"
 
         erp = softwareSystem "ERP System" "Корпоративная ERP (1С, SAP и др.)" "External"
         crm = softwareSystem "CRM System" "CRM для управления клиентами" "External"
         edms = softwareSystem "EDMS / СЭД" "Система электронного документооборота" "External"
 
         # ─── GraphRAG Platform ────────────────────────────────────────────
-        graphrag = softwareSystem "GraphRAG Platform" "Защищённая платформа интеллектуального поиска и генерации ответов по корпоративным документам (RusLawOD, RFSD)" {
+        graphrag = softwareSystem "GraphRAG Platform" "Защищённая платформа интеллектуального поиска и генерации ответов по корпоративным документам" {
 
             # --- Level 2: Containers ---
 
-            frontend = container "Web Frontend" "SPA-приложение для взаимодействия с платформой: чат, история, администрирование" "React + TypeScript" "WebBrowser"
+            frontend = container "Web Frontend" "SPA-приложение для взаимодействия с платформой: чат, история, администрирование" "Vanilla JavaScript SPA" "WebBrowser"
 
-            apiGateway = container "API Gateway" "Маршрутизация, rate limiting, TLS termination, аутентификация JWT" "Kong / Nginx" "Gateway"
-
-            backend = container "Backend Service" "Основной сервис бизнес-логики, оркестрации агента и GraphRAG pipeline" "FastAPI + LangGraph (Python 3.11)" "Service" {
+            backend = container "Backend Service" "Основной сервис бизнес-логики, оркестрации агента и GraphRAG pipeline. Включает JWT-аутентификацию, rate limiting, CORS" "FastAPI + LangGraph (Python 3.11)" "Service" {
 
                 # --- Level 3: Components ---
 
-                sessionManager = component "Session Manager" "Управление пользовательскими сессиями, хранение контекста диалога, TTL" "FastAPI Dependency"
-                rbacFilter     = component "RBAC Filter" "Проверка ролей и прав доступа (Руководитель / Аналитик / Гость), фильтрация узлов графа по security_level и department" "Python Middleware"
-                inputGuardrails  = component "Input Guardrails" "Обнаружение PII, prompt injection, валидация входных данных" "NeMo Guardrails / Custom"
-                outputGuardrails = component "Output Guardrails" "Фильтрация конфиденциальных данных из ответов, проверка галлюцинаций" "NeMo Guardrails / Custom"
+                rbacFilter     = component "RBAC Filter" "Проверка ролей и прав доступа (admin / analyst / viewer), фильтрация по clearance_level и department" "Python Middleware"
+                inputGuardrails  = component "Input Guardrails" "Обнаружение PII, prompt injection, валидация входных данных" "Custom Python"
+                outputGuardrails = component "Output Guardrails" "Фильтрация ПДн (PII masking) из ответов" "Custom Python"
 
-                planner = component "Planner (Agent)" "LangGraph state machine: анализ запроса, планирование шагов, управление циклом agent loop" "LangGraph StateGraph"
+                graphragAgent = component "GraphRAG Agent" "LangGraph state machine: classify → correct_spelling → retrieve → generate → guardrails" "LangGraph StateGraph"
 
-                memoryModule = component "Memory Module" "Единый интерфейс к графовому и векторному хранилищу: загрузка, поиск, обновление" "Python Module"
-                toolsInterface = component "Tools Interface" "Набор инструментов агента: GraphRAG retrieval, entity extraction, reranking, summarization" "LangGraph Tools"
-
-                ingestionPipeline = component "Ingestion Pipeline" "Пайплайн загрузки документов: парсинг → чанкинг → экстракция сущностей → построение графа → векторизация" "Python Pipeline"
+                ingestionPipeline = component "Ingestion Pipeline" "Загрузка: парсинг → чанкинг → экстракция сущностей → граф знаний → векторизация" "Python Pipeline"
             }
 
-            ollama = container "LLM Serving" "Обслуживание LLM (Qwen 2.5 7B) и embedding-модели (bge-m3) на GPU" "Ollama" "LLM"
+            ollama = container "LLM Serving" "Обслуживание LLM (qwen2.5:7b) и embedding-модели (bge-m3) на GPU" "Ollama" "LLM"
 
             qdrant = container "Vector Database" "Хранение векторных представлений документов с RBAC-метаданными" "Qdrant" "Database"
 
@@ -54,23 +48,23 @@ workspace "GraphRAG Platform" "Защищённая платформа GraphRAG 
         }
 
         # ─── Level 1: Context relationships ───────────────────────────────
-        analyst -> graphrag "Задаёт вопросы, анализирует документы" "HTTPS"
-        manager -> graphrag "Просматривает аналитику и отчёты" "HTTPS"
-        guest   -> graphrag "Ограниченный поиск по документам" "HTTPS"
+        admin   -> graphrag "Полное управление платформой" "HTTPS"
+        analyst -> graphrag "Загрузка документов, аналитические запросы" "HTTPS"
+        viewer  -> graphrag "Просмотр документов своего отдела" "HTTPS"
 
         graphrag -> erp  "Импорт справочников, организационной структуры" "REST API / File Import"
         graphrag -> crm  "Получение данных о клиентах и контрактах" "REST API"
         graphrag -> edms "Загрузка документов для индексации" "REST API / File Sync"
 
         # ─── Level 2: Container relationships ─────────────────────────────
+        admin   -> graphrag.frontend "Работает через браузер" "HTTPS"
         analyst -> graphrag.frontend "Работает через браузер" "HTTPS"
-        manager -> graphrag.frontend "Работает через браузер" "HTTPS"
-        guest   -> graphrag.frontend "Работает через браузер" "HTTPS"
+        viewer  -> graphrag.frontend "Работает через браузер" "HTTPS"
 
-        graphrag.frontend -> graphrag.backend "API-запросы (Nginx proxy_pass)" "HTTP / JSON"
+        graphrag.frontend -> graphrag.backend "API-запросы (nginx proxy_pass)" "HTTP / JSON"
 
         graphrag.backend -> graphrag.ollama "LLM inference, embeddings" "HTTP (порт 11434)"
-        graphrag.backend -> graphrag.qdrant "Векторный поиск, upsert" "gRPC / HTTP (порт 6333)"
+        graphrag.backend -> graphrag.qdrant "Векторный поиск, upsert" "HTTP (порт 6333)"
         graphrag.backend -> graphrag.neo4j "Cypher-запросы, обход графа" "Bolt (порт 7687)"
         graphrag.backend -> graphrag.postgres "CRUD: users, sessions, audit" "PostgreSQL Wire Protocol (порт 5432)"
         graphrag.backend -> graphrag.minio "Сохранение/загрузка документов" "S3 API (порт 9000)"
@@ -85,43 +79,32 @@ workspace "GraphRAG Platform" "Защищённая платформа GraphRAG 
         graphrag.grafana -> graphrag.jaeger "Запрос трейсов" "Jaeger Query API"
 
         # ─── Level 3: Component relationships ─────────────────────────────
-        graphrag.backend.sessionManager -> graphrag.backend.inputGuardrails "Передача валидированного запроса" ""
-        graphrag.backend.inputGuardrails -> graphrag.backend.rbacFilter "Проверенный запрос" ""
-        graphrag.backend.rbacFilter -> graphrag.backend.planner "Запрос с контекстом прав" ""
+        graphrag.backend.rbacFilter -> graphrag.backend.graphragAgent "Запрос с контекстом прав" ""
+        graphrag.backend.graphragAgent -> graphrag.backend.outputGuardrails "Сгенерированный ответ" ""
 
-        graphrag.backend.planner -> graphrag.backend.toolsInterface "Вызов инструментов агента" ""
-        graphrag.backend.planner -> graphrag.backend.memoryModule "Чтение/запись контекста" ""
-        graphrag.backend.planner -> graphrag.backend.outputGuardrails "Сгенерированный ответ" ""
-
-        graphrag.backend.toolsInterface -> graphrag.ollama "LLM generation / reranking" "HTTP"
-        graphrag.backend.toolsInterface -> graphrag.qdrant "Векторный поиск" "gRPC"
-        graphrag.backend.toolsInterface -> graphrag.neo4j "Graph traversal" "Bolt"
-
-        graphrag.backend.memoryModule -> graphrag.neo4j "Граф знаний" "Bolt"
-        graphrag.backend.memoryModule -> graphrag.qdrant "Векторные embeddings" "gRPC"
-        graphrag.backend.memoryModule -> graphrag.postgres "Сессии, история" "SQL"
+        graphrag.backend.graphragAgent -> graphrag.ollama "LLM generation / embeddings" "HTTP"
+        graphrag.backend.graphragAgent -> graphrag.qdrant "Векторный поиск" "HTTP"
+        graphrag.backend.graphragAgent -> graphrag.neo4j "Graph traversal" "Bolt"
 
         graphrag.backend.ingestionPipeline -> graphrag.ollama "Генерация embeddings (bge-m3)" "HTTP"
         graphrag.backend.ingestionPipeline -> graphrag.neo4j "Построение графа знаний" "Bolt"
-        graphrag.backend.ingestionPipeline -> graphrag.qdrant "Индексация векторов" "gRPC"
+        graphrag.backend.ingestionPipeline -> graphrag.qdrant "Индексация векторов" "HTTP"
         graphrag.backend.ingestionPipeline -> graphrag.minio "Сохранение документов" "S3 API"
 
-        graphrag.backend.outputGuardrails -> graphrag.backend.sessionManager "Финальный ответ" ""
+        graphrag.backend.outputGuardrails -> graphrag.frontend "Финальный ответ через API" "HTTP"
 
-        # ─── Deployment Model (должен быть в model, до views) ─────────────
+        # ─── Deployment Model ─────────────────────────────────────────────
         prodDeployment = deploymentEnvironment "Production" {
 
             deploymentNode "Windows 11 PC" "Ryzen 9 3900X • RTX 4060 8GB • 64 GB RAM • 2 TB NVMe" "Windows 11 + WSL2 + Docker Desktop" {
 
-                # ── DMZ Network (172.20.0.0/24) ──
                 deploymentNode "DMZ Network" "Сегмент, доступный из локальной сети" "Docker Bridge Network 172.20.0.0/24" {
 
-                    deploymentNode "frontend-container" "React SPA, порт 3000" "Docker (nginx:alpine)" {
+                    deploymentNode "frontend-container" "Vanilla JS SPA, порт 80" "Docker (nginx:alpine)" {
                         frontendInstance = containerInstance graphrag.frontend
                     }
                 }
 
-                # ── Internal Network (172.21.0.0/24) ──
                 deploymentNode "Internal Network" "Изолированный внутренний сегмент" "Docker Bridge Network 172.21.0.0/24" {
 
                     deploymentNode "backend-container" "FastAPI + LangGraph, порт 8000" "Docker (python:3.11-slim)" "CPU: 4 cores, RAM: 8 GB" {
@@ -148,7 +131,6 @@ workspace "GraphRAG Platform" "Защищённая платформа GraphRAG 
                         minioInstance = containerInstance graphrag.minio
                     }
 
-                    # ── Observability sub-segment ──
                     deploymentNode "observability-stack" "Мониторинг и трассировка" "Docker Compose group" {
 
                         deploymentNode "prometheus-container" "порт 9090" "Docker (prom/prometheus:latest)" "CPU: 1 core, RAM: 2 GB" {
@@ -170,9 +152,6 @@ workspace "GraphRAG Platform" "Защищённая платформа GraphRAG 
 
     views {
 
-        # ═══════════════════════════════════════════════════════════════════
-        #  LEVEL 1 — System Context
-        # ═══════════════════════════════════════════════════════════════════
         systemContext graphrag "Level1_Context" {
             include *
             autoLayout lr
@@ -180,9 +159,6 @@ workspace "GraphRAG Platform" "Защищённая платформа GraphRAG 
             description "Обзор интеграции GraphRAG платформы с пользователями и внешними корпоративными системами"
         }
 
-        # ═══════════════════════════════════════════════════════════════════
-        #  LEVEL 2 — Container
-        # ═══════════════════════════════════════════════════════════════════
         container graphrag "Level2_Containers" {
             include *
             autoLayout tb
@@ -190,19 +166,13 @@ workspace "GraphRAG Platform" "Защищённая платформа GraphRAG 
             description "Детализация контейнеров: Backend, LLM Serving, базы данных, observability стек"
         }
 
-        # ═══════════════════════════════════════════════════════════════════
-        #  LEVEL 3 — Component (Backend Service)
-        # ═══════════════════════════════════════════════════════════════════
         component graphrag.backend "Level3_BackendComponents" {
             include *
             autoLayout tb
             title "Level 3 — Components: Backend Service (FastAPI + LangGraph)"
-            description "Внутреннее устройство Backend Service: Session Manager, RBAC, Guardrails, Planner, Memory, Tools, Ingestion"
+            description "Внутреннее устройство Backend Service: RBAC, Guardrails, GraphRAG Agent, Ingestion Pipeline"
         }
 
-        # ═══════════════════════════════════════════════════════════════════
-        #  DEPLOYMENT — Windows 11 PC (Docker Compose)
-        # ═══════════════════════════════════════════════════════════════════
         deployment graphrag "Production" "Deployment_DockerCompose" {
             include *
             autoLayout tb
@@ -210,9 +180,6 @@ workspace "GraphRAG Platform" "Защищённая платформа GraphRAG 
             description "Физическое размещение на Ryzen 3900X / RTX 4060 / 64 GB RAM с сетевой сегментацией DMZ / Internal"
         }
 
-        # ═══════════════════════════════════════════════════════════════════
-        #  Styles
-        # ═══════════════════════════════════════════════════════════════════
         styles {
             element "Person" {
                 shape Person
@@ -250,20 +217,10 @@ workspace "GraphRAG Platform" "Защищённая платформа GraphRAG 
                 background #438dd5
                 color #ffffff
             }
-            element "Gateway" {
-                shape Hexagon
-                background #2694ab
-                color #ffffff
-            }
             element "LLM" {
                 shape RoundedBox
                 background #e05038
                 color #ffffff
-            }
-            element "Security" {
-                shape Diamond
-                background #d4a017
-                color #000000
             }
             element "Observability" {
                 shape Ellipse
@@ -273,11 +230,11 @@ workspace "GraphRAG Platform" "Защищённая платформа GraphRAG 
             element "Analyst" {
                 background #08427b
             }
-            element "Manager" {
-                background #2e6b34
-            }
-            element "Guest" {
+            element "Viewer" {
                 background #7b6e08
+            }
+            element "Admin" {
+                background #2e6b34
             }
         }
     }
