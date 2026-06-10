@@ -37,3 +37,21 @@ CLEARANCE_LEVELS = {
     2: "Секретный",
     3: "Сов. секретно",
 }
+
+# ── LLM inference parameters ──
+LLM_TEMPERATURE_CHAT = 0.1        # генерация ответов в чате
+LLM_TEMPERATURE_SPELLING = 0.0    # исправление опечаток (без креативности)
+LLM_TEMPERATURE_NER = 0.0         # извлечение сущностей (строгий JSON)
+LLM_MAX_TOKENS_NER = 2000         # лимит токенов для NER
+LLM_SPELLING_MAX_TOKENS_BASE = 512  # базовый лимит для проверки орфографии
+LLM_SPELLING_LENGTH_MULTIPLIER = 2  # множитель длины текста → max_tokens
+LLM_SPELLING_MIN_LENGTH_RATIO = 0.3  # минимальное соотношение длин (защита)
+LLM_SPELLING_MAX_LENGTH_RATIO = 2.5  # максимальное соотношение длин (защита)
+
+# ── Embedding batch size ──
+OLLAMA_EMBED_BATCH_SIZE = 64
+
+# ── NER extraction defaults ──
+NER_LLM_CONFIDENCE = 0.8    # confidence for LLM-extracted entities
+NER_REGEX_CONFIDENCE = 0.6  # confidence for regex-extracted entities
+NER_RELATION_CONFIDENCE = 0.7  # confidence for relations

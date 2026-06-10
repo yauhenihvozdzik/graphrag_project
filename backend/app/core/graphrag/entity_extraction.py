@@ -22,8 +22,16 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from app.core.config import settings
+from app.core.constants import (
+    LLM_TEMPERATURE_NER,
+    LLM_MAX_TOKENS_NER,
+    NER_LLM_CONFIDENCE,
+    NER_REGEX_CONFIDENCE,
+    NER_RELATION_CONFIDENCE,
+)
 from app.core.logging import logger
 from app.core.metrics import entities_extracted_total
+from app.core.prompts import ENTITY_EXTRACTION_PROMPT, NER_SYSTEM_PROMPT
 
 
 @dataclass
@@ -58,73 +66,42 @@ class ExtractionResult:
     relations: list[ExtractedRelation]
 
 
-# System prompt for LLM-based entity extraction
-ENTITY_EXTRACTION_PROMPT = """Ты — система извлечения сущностей из юридических документов на русском языке.
-
-Из данного фрагмента текста извлеки все именованные сущности и отношения между ними.
-
-Типы сущностей:
-- ЗАКОН: названия законов, кодексов, постановлений (например: "Гражданский кодекс РФ", "Федеральный закон №152-ФЗ")
-- СТАТЬЯ: ссылки на статьи, пункты, подпункты (например: "статья 15", "п. 3 ст. 421")
-- ОРГАНИЗАЦИЯ: юридические лица, госорганы, суды (например: "Верховный Суд РФ", "ООО Ромашка")
-- ПЕРСОНА: физические лица, должностные лица
-- ДАТА: даты, сроки (например: "01.01.2024", "в течение 30 дней")
-- СУД: суды и судебные органы (например: "Арбитражный суд г. Москвы")
-- ДОКУМЕНТ: ссылки на документы, решения, постановления
-- ПОНЯТИЕ: юридические термины и концепции (например: "неустойка", "залог")
-- ТЕРРИТОРИЯ: географические объекты, юрисдикции
-- НАКАЗАНИЕ: виды наказаний, санкции, штрафы
-
-Типы отношений:
-- РЕГУЛИРУЕТ: закон/статья регулирует область
-- ССЫЛАЕТСЯ_НА: документ ссылается на другой документ
-- ОТНОСИТСЯ_К: сущность относится к другой сущности
-- ВЫНЕС_РЕШЕНИЕ: суд вынес решение
-- УСТАНАВЛИВАЕТ: закон устанавливает правило/наказание
-- УЧАСТНИК: персона/организация является участником дела
-
-Верни результат ТОЛЬКО в формате JSON:
-{
-  "entities": [
-    {"name": "...", "type": "...", "description": "..."}
-  ],
-  "relations": [
-    {"source": "...", "target": "...", "type": "...", "description": "..."}
-  ]
-}
-
-Текст для анализа:
-"""
-
-
 class EntityExtractionService:
-    """Service for extracting entities and relations from text chunks."""
+    """Service for extracting entities and relations from text chunks — universal (topic-agnostic)."""
 
-    # Regex-based fallback patterns for Russian legal entities
-    LEGAL_PATTERNS = {
-        "ЗАКОН": [
-            r"(?:Федеральн(?:ый|ого)\s+закон(?:а|у|ом|е)?\s+(?:от\s+)?\d{1,2}[\.\-]\d{1,2}[\.\-]\d{2,4}\s*(?:г\.?)?\s*(?:№\s*\d+[\-]?[А-Яа-яA-Za-z]*)?)",
-            r"(?:(?:Гражданск|Уголовн|Трудов|Налогов|Административн|Земельн|Жилищн|Семейн|Бюджетн|Арбитражн|Процессуальн)[а-я]*\s+кодекс[а-я]*\s+(?:РФ|Российской\s+Федерации)?)",
-            r"(?:Конституци[а-я]*\s+(?:РФ|Российской\s+Федерации))",
-            r"(?:Постановлени[а-я]*\s+Правительства\s+РФ\s+(?:от\s+)?\d{1,2}[\.\-]\d{1,2}[\.\-]\d{2,4})",
-            r"(?:Указ[а-я]*\s+Президента\s+РФ)",
-        ],
-        "СТАТЬЯ": [
-            r"(?:(?:ст(?:атья|\.)\s*\d+(?:\.\d+)?(?:\s*п(?:ункт|\.)\s*\d+)?))",
-            r"(?:(?:п(?:ункт|\.)\s*\d+(?:\.\d+)?)\s+(?:ст(?:атья|\.)\s*\d+))",
-            r"(?:(?:ч(?:асть|\.)\s*\d+)\s+(?:ст(?:атья|\.)\s*\d+))",
-        ],
+    # Universal regex-based fallback patterns (topic-agnostic)
+    UNIVERSAL_PATTERNS = {
         "ОРГАНИЗАЦИЯ": [
             r"(?:(?:ООО|ОАО|ЗАО|ПАО|АО|ИП|ФГУП|ГУП|МУП)\s+[«\"]?[\w\s]+[»\"]?)",
-            r"(?:Министерств[а-я]*\s+[\w\s]+(?:РФ|Российской\s+Федерации))",
+            r"(?:Министерств[а-я]*\s+[\w\s]+)",
+            r"\b(?:отдел|департамент|управление|служба|сектор|подразделение)\s+[\w\s]+",
         ],
-        "СУД": [
-            r"(?:(?:Верховн|Конституционн|Арбитражн)[а-я]*\s+[Сс]уд[а-я]*\s+[\w\s]*)",
-            r"(?:(?:районн|городск|областн|краев|мировой|апелляционн|кассационн)[а-я]*\s+суд[а-я]*)",
+        "ПЕРСОНА": [
+            r"\b[А-Я][а-я]+\s+[А-Я]\.[А-Я]\.",  # Иванов И.И.
+            r"\b(?:менеджер|администратор|бухгалтер|водитель|кладовщик|экспедитор|оператор|диспетчер|руководитель|начальник|директор|специалист|техподдержка|аналитик)\b",
+        ],
+        "ДОКУМЕНТ": [
+            r"\b(?:акт|накладная|счёт-фактура|счёт|договор|отчёт|журнал|ведомость|заказ|спецификация|сертификат|декларация|устав|регламент|инструкция|приказ|распоряжение|протокол|заявка|чек|квитанция)\s*(?:[\w\s/\-№]*)?",
+            r"\b[A-ZА-Я]{2,}[\w\-]*\.[a-z]{2,4}\b",  # filenames like ТОРГ-12.xlsx
         ],
         "ДАТА": [
             r"\b\d{1,2}[\.\-/]\d{1,2}[\.\-/]\d{2,4}\b",
             r"\b\d{1,2}\s+(?:январ|феврал|март|апрел|ма[яй]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-я]*\s+\d{4}\s*(?:г(?:ода?)?\.?)?\b",
+        ],
+        "ТЕХНОЛОГИЯ": [
+            r"\b(?:1С|SAP|Oracle|Microsoft|NAV|ERP|CRM|WMS|TMS|EDI|XML|JSON|API|REST|S3|MinIO|Qdrant|Neo4j|Ollama|Kubernetes|Docker|PostgreSQL|nginx|GitLab|GitHub)\b",
+            r"\b[A-ZА-Я][\w]*(?:\s*[\d.]+)?(?:\s+(?:система|программа|модуль|сервис|приложение|платформа))\b",
+        ],
+        "ПРОЦЕСС": [
+            r"\b(?:приёмка|отгрузка|перемещение|инвентаризация|маркировка|согласование|утверждение|списание|оприходование|возврат|доставка|сборка|упаковка|проверка|импорт|экспорт|синхронизация|загрузка|выгрузка|обработка|формирование|печать|расчёт|сверка)\s*(?:[\w\s]*)",
+        ],
+        "ЛОКАЦИЯ": [
+            r"\b(?:г\.|город)\s+[\w\s\-]+",
+            r"\b(?:склад|магазин|точка|офис|филиал)\s*(?:№?\s*[\d\w]+)?",
+            r"\b(?:РБ|РФ|РК|Минск|Москва|Астана)\b",
+        ],
+        "ПОКАЗАТЕЛЬ": [
+            r"\b\d+(?:\.\d+)?\s*(?:%|руб|BYN|RUB|USD|EUR|шт|кг|л|км|ч|мин)\b",
         ],
     }
 
@@ -188,9 +165,9 @@ class EntityExtractionService:
 
         response = await ollama_service.generate(
             prompt=prompt,
-            system="Ты — система NER для юридических текстов. Отвечай только JSON.",
-            temperature=0.0,
-            max_tokens=2000,
+            system=NER_SYSTEM_PROMPT,
+            temperature=LLM_TEMPERATURE_NER,
+            max_tokens=LLM_MAX_TOKENS_NER,
         )
 
         # Parse JSON from LLM response
@@ -222,7 +199,7 @@ class EntityExtractionService:
                         entity_type=ent.get("type", "ПОНЯТИЕ"),
                         description=ent.get("description", ""),
                         source_chunk_id=chunk_id,
-                        confidence=0.8,  # LLM default confidence
+                        confidence=NER_LLM_CONFIDENCE,
                     )
                 )
 
@@ -233,7 +210,7 @@ class EntityExtractionService:
                         target=rel.get("target", ""),
                         relation_type=rel.get("type", "ОТНОСИТСЯ_К"),
                         description=rel.get("description", ""),
-                        confidence=0.7,
+                        confidence=NER_RELATION_CONFIDENCE,
                     )
                 )
         except json.JSONDecodeError as e:
@@ -246,26 +223,13 @@ class EntityExtractionService:
 
         return entities, relations
 
-    # Generic patterns for any text (not just legal)
-    GENERIC_PATTERNS = {
-        "ПОНЯТИЕ": [
-            r"\b(?:граф знаний|графа знаний|графы знаний|векторная база|векторный поиск|база знаний|онтология|семантический поиск)\b",
-            r"\b(?:RAG|LLM|API|REST|GraphQL|GraphRAG|embeddings?|tokenization|inference|fine-tuning|prompt engineering)\b",
-            r"\b(?:Neo4j|Qdrant|Ollama|PostgreSQL|LangChain|LangGraph|FastAPI|Kubernetes|Docker)\b",
-        ],
-        "ТЕХНОЛОГИЯ": [
-            r"\b[A-ZА-Я][a-zа-я]{3,}(?:\s+[A-ZА-Я][a-zа-я]{2,}){1,3}\b",  # Capitalized multi-word phrases
-            r"\b[A-ZА-Я]{2,}(?:\.[A-ZА-Я]{2,})*\b",  # Acronyms
-        ],
-    }
 
     def _extract_with_regex(self, chunk) -> ExtractionResult:
-        """Fallback: extract entities using regex patterns."""
+        """Fallback: extract entities using universal regex patterns."""
         entities = []
         text = chunk.text
 
-        # Try legal patterns first, then generic
-        all_patterns = {**self.LEGAL_PATTERNS, **self.GENERIC_PATTERNS}
+        all_patterns = self.UNIVERSAL_PATTERNS
         for entity_type, patterns in all_patterns.items():
             for pattern in patterns:
                 matches = re.finditer(pattern, text, re.IGNORECASE)
@@ -277,7 +241,7 @@ class EntityExtractionService:
                                 name=entity_name,
                                 entity_type=entity_type,
                                 source_chunk_id=chunk.chunk_id,
-                                confidence=0.6,  # Regex lower confidence
+                                confidence=NER_REGEX_CONFIDENCE,
                             )
                         )
 

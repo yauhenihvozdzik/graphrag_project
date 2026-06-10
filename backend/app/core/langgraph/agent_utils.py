@@ -7,7 +7,14 @@
 
 import re
 
-from app.core.constants import GRAPH_QUERY_KEYWORDS
+from app.core.constants import (
+    GRAPH_QUERY_KEYWORDS,
+    LLM_SPELLING_LENGTH_MULTIPLIER,
+    LLM_SPELLING_MAX_LENGTH_RATIO,
+    LLM_SPELLING_MAX_TOKENS_BASE,
+    LLM_SPELLING_MIN_LENGTH_RATIO,
+    LLM_TEMPERATURE_SPELLING,
+)
 from app.core.prompts import (
     SYSTEM_PROMPT, NO_CONTEXT_MESSAGE, CONTEXT_HEADER,
     SPELLING_CORRECTION_PROMPT,
@@ -167,12 +174,12 @@ async def correct_spelling(text: str, ollama_service) -> str:
         ]
         corrected = await ollama_service.chat(
             messages=messages,
-            temperature=0.0,  # минимальная креативность — только исправления
-            options={"num_predict": min(len(text) * 2, 512)},
+            temperature=LLM_TEMPERATURE_SPELLING,
+            options={"num_predict": min(len(text) * LLM_SPELLING_LENGTH_MULTIPLIER, LLM_SPELLING_MAX_TOKENS_BASE)},
         )
         corrected = corrected.strip().strip('"').strip("'")
         # Если модель вернула пустоту или слишком сильно изменила длину — не рискуем
-        if not corrected or len(corrected) < len(text) * 0.3 or len(corrected) > len(text) * 2.5:
+        if not corrected or len(corrected) < len(text) * LLM_SPELLING_MIN_LENGTH_RATIO or len(corrected) > len(text) * LLM_SPELLING_MAX_LENGTH_RATIO:
             return text
         return corrected
     except Exception:

@@ -15,11 +15,12 @@ from typing import Any, AsyncGenerator, Optional
 import httpx
 
 from app.core.config import settings
+from app.core.constants import OLLAMA_EMBED_BATCH_SIZE
 from app.core.logging import logger
 from app.core.metrics import llm_inference_duration_seconds, llm_stream_duration_seconds
 
 
-BATCH_SIZE = 64  # Ollama API comfortably handles this many texts per /api/embed call
+BATCH_SIZE = OLLAMA_EMBED_BATCH_SIZE
 
 
 class OllamaService:
