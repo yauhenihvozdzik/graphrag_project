@@ -2,7 +2,8 @@
    GraphRAG Platform — Sharp Industrial Dark Theme
    ══════════════════════════════════════════════ */
 
-:root {
+:root,
+[data-theme="dark"] {
     --primary: #818cf8;
     --primary-hover: #6366f1;
     --primary-glow: rgba(129, 140, 248, 0.12);
@@ -27,6 +28,29 @@
     --transition: 0.15s ease;
     --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+}
+
+[data-theme="light"] {
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
+    --primary-glow: rgba(99, 102, 241, 0.15);
+    --bg: #f8fafc;
+    --bg-surface: #f1f5f9;
+    --bg-card: rgba(255, 255, 255, 0.9);
+    --bg-card-solid: #ffffff;
+    --bg-input: rgba(241, 245, 249, 0.9);
+    --text: #0f172a;
+    --text-secondary: #334155;
+    --text-muted: #64748b;
+    --border: rgba(148, 163, 184, 0.5);
+    --border-light: rgba(148, 163, 184, 0.3);
+    --success: #059669;
+    --error: #dc2626;
+    --warning: #d97706;
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08);
 }
 
 * {
@@ -255,16 +279,21 @@ body {
 }
 
 .sidebar-header {
-    padding: 1.25rem 1.2rem;
+    padding: 1rem 0.8rem;
     border-bottom: 1px solid var(--border-light);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.35rem;
 }
 .sidebar-header h2 {
-    font-size: 1.05rem;
+    font-size: 0.95rem;
     font-weight: 700;
     color: var(--primary);
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .badge {
     font-size: 0.62rem;
@@ -275,6 +304,15 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     border: 1px solid rgba(129, 140, 248, 0.15);
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+}
+.theme-toggle-btn {
+    flex-shrink: 0;
+    margin-left: auto;
 }
 
 nav {
@@ -308,13 +346,21 @@ nav {
 }
 
 .sidebar-footer {
-    padding: 1rem 1.2rem;
+    padding: 0.85rem 1.2rem;
     border-top: 1px solid var(--border-light);
     font-size: 0.76rem;
     color: var(--text-muted);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.5rem;
+}
+.user-email-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
 }
 
 #main-content {
@@ -956,39 +1002,55 @@ nav {
         border-right: none;
         border-bottom: 1px solid var(--border-light);
     }
+    .sidebar-header {
+        display: flex;
+        padding: 0.5rem 0.8rem;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .sidebar-header h2 {
+        font-size: 0.95rem;
+    }
     nav {
         flex-direction: row;
         gap: 0.2rem;
-        padding: 0.4rem;
+        padding: 0.35rem 0.4rem;
         overflow-x: auto;
     }
     .nav-btn {
         flex: 1;
         min-width: fit-content;
         text-align: center;
-        padding: 0.45rem 0.5rem;
-        font-size: 0.75rem;
+        padding: 0.4rem 0.45rem;
+        font-size: 0.74rem;
         white-space: nowrap;
     }
     .sidebar-footer {
-        display: none;
+        display: flex;
+        padding: 0.45rem 0.8rem;
+        border-top: 1px solid var(--border-light);
+        font-size: 0.72rem;
+        gap: 0.4rem;
     }
-    .sidebar-header {
-        display: none;
+    .user-email-text {
+        font-size: 0.7rem;
     }
     #main-content {
         flex: 1;
         overflow: hidden;
     }
     .chat-input-area {
-        padding: 0.5rem;
+        padding: 0.5rem 0.65rem;
+        gap: 0.35rem;
     }
     .chat-messages {
-        padding: 0.65rem;
+        padding: 0.75rem;
     }
     .docs-container,
     .infra-container {
-        padding: 0.65rem;
+        padding: 0.75rem;
+    }
+    .docs-container h2 {
+        margin-bottom: 0.5rem;
     }
     .form-row {
         flex-direction: column;
@@ -1006,7 +1068,7 @@ nav {
     }
     .docs-table th,
     .docs-table td {
-        padding: 0.35rem 0.4rem;
+        padding: 0.4rem 0.45rem;
     }
     .modal-dialog {
         min-width: auto;
@@ -1014,11 +1076,14 @@ nav {
         padding: 1.5rem;
     }
     .docs-toolbar {
-        gap: 0.3rem;
+        gap: 0.35rem;
     }
     .docs-toolbar .form-select {
         min-width: 100px;
         font-size: 0.76rem;
+    }
+    .ingest-type-selector {
+        margin-bottom: 1rem;
     }
 }
 

@@ -1704,6 +1704,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // ─── Theme Toggle ────────────────────────
+    (function initTheme() {
+        const saved = localStorage.getItem('graphrag_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', saved);
+        updateThemeButton(saved);
+        $('#theme-toggle').onclick = () => {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('graphrag_theme', next);
+            updateThemeButton(next);
+        };
+        function updateThemeButton(theme) {
+            const btn = $('#theme-toggle');
+            if (btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
+        }
+    })();
+
     // ─── Auto-Login on Page Load ────────────────
     if (api.token) {
         api.getMe()

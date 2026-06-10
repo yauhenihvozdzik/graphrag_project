@@ -175,15 +175,13 @@
         </div>
     </div>
 
-    <!-- ═══════════════════════════════════════════ -->
-    <!-- APP SCREEN                                 -->
-    <!-- ═══════════════════════════════════════════ -->
     <div id="app-screen" class="screen hidden">
         <!-- Sidebar -->
         <aside id="sidebar">
             <div class="sidebar-header">
                 <h2>GraphRAG</h2>
                 <span id="user-role" class="badge"></span>
+                <button id="theme-toggle" class="btn btn-sm theme-toggle-btn" title="Переключить тему">🌙</button>
             </div>
             <nav>
                 <button class="nav-btn active" data-tab="chat">💬 Чат</button>
@@ -193,7 +191,7 @@
                 <button class="nav-btn" data-tab="infra" data-min-role="admin">🏗️ Инфраструктура</button>
             </nav>
             <div class="sidebar-footer">
-                <span id="user-email"></span>
+                <span id="user-email" class="user-email-text"></span>
                 <button id="logout-btn" class="btn btn-sm">Выйти</button>
             </div>
         </aside>
