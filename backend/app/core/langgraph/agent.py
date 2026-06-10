@@ -24,6 +24,7 @@ from app.core.langgraph.agent_utils import (
     classify_query,
     correct_spelling,
     format_graph_context,
+    is_off_topic,
 )
 
 # Опциональная зависимость для сохранения состояния диалогов
@@ -41,10 +42,11 @@ class GraphRAGAgent:
 
     Узлы графа:
     1. classify_query — определяет тип запроса (факт / граф / диалог)
-    2. correct_spelling — исправляет опечатки в запросе для лучшего поиска
-    3. retrieve_context — векторный поиск (Qdrant) + графовый обход (Neo4j)
-    4. generate_response — генерация ответа через Ollama LLM
-    5. apply_guardrails — фильтрация вывода (ПДн, инъекции)
+    2. off_topic_filter — отклоняет не-бизнесовые запросы без поиска
+    3. correct_spelling — исправляет опечатки в запросе для лучшего поиска
+    4. retrieve_context — векторный поиск (Qdrant) + графовый обход (Neo4j)
+    5. generate_response — генерация ответа через Ollama LLM
+    6. apply_guardrails — фильтрация вывода (ПДн, инъекции)
     """
 
     def __init__(self):
@@ -62,6 +64,7 @@ class GraphRAGAgent:
 
         # Регистрируем узлы графа
         workflow.add_node("classify_query", self._classify_query)
+        workflow.add_node("off_topic_filter", self._off_topic_filter)
         workflow.add_node("correct_spelling", self._correct_spelling)
         workflow.add_node("retrieve_context", self._retrieve_context)
         workflow.add_node("generate_response", self._generate_response)
@@ -69,7 +72,15 @@ class GraphRAGAgent:
 
         # Определяем поток выполнения: classify → spelling → retrieve → generate → guardrails
         workflow.set_entry_point("classify_query")
-        workflow.add_edge("classify_query", "correct_spelling")
+        workflow.add_edge("classify_query", "off_topic_filter")
+
+        def after_off_topic(state: dict) -> str:
+            return "apply_guardrails" if state.get("skip_retrieval") else "correct_spelling"
+
+        workflow.add_conditional_edges("off_topic_filter", after_off_topic, {
+            "correct_spelling": "correct_spelling",
+            "apply_guardrails": "apply_guardrails",
+        })
         workflow.add_edge("correct_spelling", "retrieve_context")
         workflow.add_edge("retrieve_context", "generate_response")
         workflow.add_edge("generate_response", "apply_guardrails")
@@ -111,7 +122,32 @@ class GraphRAGAgent:
         logger.debug("query_classified", requires_graph=requires_graph, entities=entities)
         return state
 
-    # ── Узел 2: Коррекция опечаток ────────────────────────────
+    # ── Узел 2: Фильтрация off-topic ────────────────────────
+
+    async def _off_topic_filter(self, state: dict) -> dict:
+        """Отклоняет запросы не по бизнес-теме мгновенно, без поиска."""
+        messages = state.get("messages", [])
+        if not messages:
+            return state
+        last_message = (
+            messages[-1] if isinstance(messages[-1], str)
+            else messages[-1].get("content", "")
+        )
+        if is_off_topic(last_message):
+            state["skip_retrieval"] = True
+            state["response"] = (
+                "Извините, я работаю только с корпоративными документами "
+                "и могу отвечать на вопросы по бизнес-процессам, ERP, складу, "
+                "логистике и связанным темам. Ваш вопрос не относится к "
+                "моей области знаний."
+            )
+            state["sources"] = []
+            logger.info("off_topic_blocked", query_preview=last_message[:60])
+        else:
+            state["skip_retrieval"] = False
+        return state
+
+    # ── Узел 3: Коррекция опечаток ────────────────────────────
 
     async def _correct_spelling(self, state: dict) -> dict:
         """
@@ -454,6 +490,7 @@ class GraphRAGAgent:
             "sources": [],
             "requires_graph": False,
             "last_message_corrected": "",
+            "skip_retrieval": False,
             "access_context": access_context or {},
         }
         config = {"configurable": {"thread_id": session_id}}
@@ -485,9 +522,14 @@ class GraphRAGAgent:
             "sources": [],
             "requires_graph": False,
             "last_message_corrected": "",
+            "skip_retrieval": False,
             "access_context": access_context or {},
         }
         state = await self._classify_query(state)
+        state = await self._off_topic_filter(state)
+        if state.get("skip_retrieval"):
+            yield state["response"]
+            return
         state = await self._correct_spelling(state)
         state = await self._retrieve_context(state)
 
