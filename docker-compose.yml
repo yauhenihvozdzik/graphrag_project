@@ -79,13 +79,16 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    # NOTE: GPU acceleration via nvidia container-toolkit is only available on Linux/Windows hosts.
+    # On macOS (Docker Desktop), GPU passthrough is not supported — Ollama will run on CPU.
+    # On Linux with NVIDIA GPU, uncomment the deploy section below:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
     restart: unless-stopped
     networks:
       - graphrag-internal
@@ -157,13 +160,6 @@ services:
     container_name: graphrag-backend
     ports:
       - "8000:8000"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     env_file:
       - ./backend/.env
     environment:
@@ -326,9 +322,9 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/24
+        - subnet: 172.24.0.0/24
   graphrag-internal:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.21.0.0/24
+        - subnet: 172.25.0.0/24

@@ -78,6 +78,7 @@ class Settings:
         self.SMTP_PASSWORD = os.getenv("SMTP_PASSWORD",""); self.SMTP_USE_TLS = os.getenv("SMTP_USE_TLS","true")
         self.S3_ENDPOINT = os.getenv("S3_ENDPOINT","http://localhost:9000"); self.S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY","minioadmin")
         self.S3_SECRET_KEY = os.getenv("S3_SECRET_KEY","minioadmin"); self.S3_BUCKET = os.getenv("S3_BUCKET","graphrag-documents"); self.S3_REGION = os.getenv("S3_REGION","us-east-1")
+        self.PUBLIC_HOST = os.getenv("PUBLIC_HOST", "localhost")
         self.UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR","data/uploads")); self.PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR","data/processed"))
         self._apply_environment_settings()
 
