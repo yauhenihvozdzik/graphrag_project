@@ -213,6 +213,32 @@ document.addEventListener('DOMContentLoaded', () => {
         return { status: 'timeout', phaseLabel: '⏱️ Таймаут' };
     }
 
+    // ─── Poll with Toast Updates ────────────────
+    // Used by text and URL ingest modes — polls status every 1.5s and
+    // updates the sticky toast with the current pipeline step label.
+    async function poll(docId, toastEl) {
+        for (let i = 0; i < 90; i++) {
+            await new Promise((r) => setTimeout(r, 1500));
+            try {
+                const s = await api.getIngestStatus(docId);
+                if (s.status === 'completed') {
+                    updT(toastEl, '✅ Завершён', 'success');
+                    return 'ok';
+                }
+                if (s.status === 'failed') {
+                    updT(toastEl, `❌ ${s.error || 'Ошибка'}`, 'error');
+                    return 'error';
+                }
+                const label = stepLabel(s.step_name || '');
+                updT(toastEl, `⏳ ${label}`, 'info');
+            } catch {
+                updT(toastEl, '❌ Ошибка сети', 'warning');
+            }
+        }
+        updT(toastEl, '⏱️ Таймаут', 'error');
+        return 'timeout';
+    }
+
     // ─── Document Download ──────────────────────
     async function downloadDoc(docId, title) {
         try {
