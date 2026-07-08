@@ -16,6 +16,7 @@ from typing import Optional
 from app.core.config import settings
 from app.core.logging import logger
 from app.core.metrics import guardrail_blocks_total
+from app.core.settings_registry import SettingsRegistry
 
 
 @dataclass
@@ -105,14 +106,56 @@ INJECTION_PATTERNS = [
 
 
 class GuardrailsService:
-    """Service for input/output safety checks with two-tier PII detection."""
+    """Service for input/output safety checks with two-tier PII detection.
+
+    Reads dynamic configuration from :class:`SettingsRegistry` on init and
+    via :meth:`reload_config`. Falls back to hardcoded constants when the
+    registry cache is empty.
+    """
 
     def __init__(self):
-        self._pii_patterns = {
-            name: (re.compile(strict), re.compile(loose), label)
-            for name, (strict, loose, label) in PII_PATTERNS.items()
-        }
-        self._injection_patterns = [re.compile(p) for p in INJECTION_PATTERNS]
+        registry = SettingsRegistry()
+        self.enabled = registry.get_guardrails_enabled()
+        self.max_input_length = registry.get_max_input_length()
+        self.injection_threshold = registry.get_injection_threshold()
+        # Compile patterns — prefer registry, fallback to module-level constants
+        self._injection_patterns = registry.get_injection_patterns()
+        self._pii_patterns = registry.get_pii_patterns()
+
+        # If registry had no compiled patterns, fall back to hardcoded ones
+        if not self._injection_patterns:
+            self._injection_patterns = [re.compile(p) for p in INJECTION_PATTERNS]
+        if not self._pii_patterns:
+            self._pii_patterns = {
+                name: (re.compile(strict), re.compile(loose), label)
+                for name, (strict, loose, label) in PII_PATTERNS.items()
+            }
+
+    def reload_config(self) -> None:
+        """Re-read all settings from the registry and re-compile patterns.
+
+        Called after any admin settings update so that the running service
+        picks up the new values immediately without a restart.
+        """
+        registry = SettingsRegistry()
+        self.enabled = registry.get_guardrails_enabled()
+        self.max_input_length = registry.get_max_input_length()
+        self.injection_threshold = registry.get_injection_threshold()
+
+        # Re-compile patterns from registry (or fallback)
+        self._injection_patterns = registry.get_injection_patterns()
+        self._pii_patterns = registry.get_pii_patterns()
+        if not self._injection_patterns:
+            self._injection_patterns = [re.compile(p) for p in INJECTION_PATTERNS]
+        if not self._pii_patterns:
+            self._pii_patterns = {
+                name: (re.compile(strict), re.compile(loose), label)
+                for name, (strict, loose, label) in PII_PATTERNS.items()
+            }
+        logger.info("guardrails_config_reloaded",
+                    enabled=self.enabled,
+                    injection_patterns=len(self._injection_patterns),
+                    pii_patterns=len(self._pii_patterns))
 
     @staticmethod
     def _normalise_whitespace(text: str) -> str:
@@ -132,22 +175,22 @@ class GuardrailsService:
         Returns:
             GuardrailResult with safety assessment and sanitized text.
         """
-        if not settings.GUARDRAILS_ENABLED:
+        if not self.enabled:
             return GuardrailResult(is_safe=True, sanitized_text=text)
 
         # Length check
-        if len(text) > settings.MAX_INPUT_LENGTH:
+        if len(text) > self.max_input_length:
             guardrail_blocks_total.labels(reason="max_length_exceeded").inc()
             logger.warning("guardrail_blocked_length", length=len(text))
             return GuardrailResult(
                 is_safe=False,
-                sanitized_text=text[: settings.MAX_INPUT_LENGTH],
+                sanitized_text=text[: self.max_input_length],
                 blocked_reason="Превышена максимальная длина ввода",
             )
 
         # Prompt injection detection
         injection_score = self._detect_injection(text)
-        if injection_score >= settings.PROMPT_INJECTION_THRESHOLD:
+        if injection_score >= self.injection_threshold:
             guardrail_blocks_total.labels(reason="prompt_injection").inc()
             logger.warning(
                 "guardrail_blocked_injection",
@@ -183,7 +226,7 @@ class GuardrailsService:
         Returns:
             Sanitized output text.
         """
-        if not settings.GUARDRAILS_ENABLED:
+        if not self.enabled:
             return text
         sanitized, _ = self._mask_pii(text)
         return sanitized

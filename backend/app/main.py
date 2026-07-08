@@ -98,6 +98,25 @@ async def lifespan(app: FastAPI):
     try:
         _seed_demo_users()
     except Exception as e: logger.exception("demo_users_seed_failed", error=str(e))
+    # ── Seed default admin settings if empty ──
+    try:
+        from app.seed_admin_settings import seed_admin_settings
+        seed_admin_settings(database_service)
+    except Exception as e:
+        logger.exception("admin_settings_seed_failed", error=str(e))
+    # ── Initialise dynamic settings registry ──
+    try:
+        from app.core.settings_registry import SettingsRegistry
+        settings_registry = SettingsRegistry()
+        await settings_registry.initialize()
+        logger.info("settings_registry_initialised")
+    except Exception as e: logger.exception("settings_registry_init_failed", error=str(e))
+    # ── Reload guardrails config from registry ──
+    try:
+        from app.core.security.guardrails import guardrails_service
+        guardrails_service.reload_config()
+        logger.info("guardrails_config_initialised")
+    except Exception as e: logger.exception("guardrails_config_init_failed", error=str(e))
     # Backfill full_text for existing documents from chunks
     try:
         await _backfill_document_full_text()

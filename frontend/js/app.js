@@ -37,6 +37,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const RO = { viewer: 0, analyst: 1, admin: 2 };
 
+    const ADMIN_CATEGORIES = {
+        'prompts': '🚀 Промпты',
+        'llm_temperature': '🌡️ Температура LLM',
+        'guardrails': '🛡️ Guardrails',
+        'off_topic': '🚫 Off-topic',
+        'stop_tokens': '⛔ Стоп-токены',
+        'rag_parameters': '📊 RAG параметры',
+        'other': '⚙️ Другое',
+        'history': '📜 История',
+    };
+
     // ─── State ──────────────────────────────────
     let curUser = null;
     let dPage = 1;
@@ -47,6 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let uOrder = 'asc';
     let uTimer;
     let deptList = [];
+    let adminSettingsCache = {};
+    let adminCurrentCategory = null;
 
     // ─── Department Helpers ─────────────────────
     function deptName(code) {
@@ -449,8 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (tn === 'admin' && curUser?.role === 'admin') {
             populateAllDeptSelects();
-            uPage = 1;
-            activateAdminSubtab('users');
+            activateAdminSubtab(adminTab);
         }
     }
 
@@ -478,6 +490,8 @@ document.addEventListener('DOMContentLoaded', () => {
             loadUsers();
         } else if (st === 'departments') {
             loadDeptTable();
+        } else if (st === 'settings') {
+            initAdminPage();
         }
     }
 
@@ -1747,6 +1761,308 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
         }
     })();
+
+    // ─── Admin Settings Panel ────────────────────
+    // Determine input type for a setting value
+    function getAdminInputType(key, val) {
+        const strKey = String(key).toLowerCase();
+        const textareaKeys = [
+            'system_prompt', 'spelling_correction_prompt', 'entity_extraction_prompt',
+        ];
+        if (textareaKeys.includes(strKey)) return 'textarea';
+        if (strKey.startsWith('temperature')) return 'number-float';
+        if (strKey === 'guardrails_enabled') return 'toggle';
+        if (['injection_threshold', 'max_input_length', 'reranker_top_k', 'reranker_min_score',
+            'num_ctx', 'max_tokens', 'reranker_max_chunks_per_doc',
+        ].includes(strKey)) return 'number';
+        if (['no_context_message', 'context_header'].includes(strKey)) return 'text';
+        if (['keywords', 'tokens', 'patterns', 'allowed_file_extensions'].includes(strKey)) return 'textarea';
+        if (typeof val === 'boolean') return 'toggle';
+        if (typeof val === 'number') return Number.isInteger(val) ? 'number' : 'number-float';
+        if (Array.isArray(val) || (typeof val === 'object' && val !== null)) return 'textarea';
+        return 'text';
+    }
+
+    function initAdminPage() {
+        adminSettingsCache = {};
+        adminCurrentCategory = null;
+        const panel = $('#admin-settings-panel');
+        panel.innerHTML = '<p style="color:var(--text-muted);padding:20px 0;">⏳ Загрузка настроек...</p>';
+
+        AdminAPI.getAllSettings()
+            .then((data) => {
+                adminSettingsCache = data.categories || {};
+                renderAdminSidebar(Object.keys(adminSettingsCache));
+                // Select first category
+                const keys = Object.keys(adminSettingsCache);
+                if (keys.length) {
+                    selectAdminCategory(keys[0]);
+                } else {
+                    panel.innerHTML = '<p style="color:var(--text-muted);padding:20px 0;">Нет доступных настроек</p>';
+                }
+            })
+            .catch((e) => {
+                panel.innerHTML = '<p style="color:var(--error);padding:20px 0;">❌ ' + e.message + '</p>';
+            });
+    }
+
+    function renderAdminSidebar(categories) {
+        const sb = $('#admin-sidebar');
+        if (!sb) return;
+
+        // Always include 'history' at the end — it's a virtual category
+        // that is not stored in the backend DB but shows audit history
+        const allCategories = categories.includes('history')
+            ? categories
+            : [...categories, 'history'];
+
+        let html = '';
+        allCategories.forEach((cat) => {
+            if (cat === 'history') {
+                html += '<div class="admin-sidebar-separator"></div>';
+            }
+            const label = ADMIN_CATEGORIES[cat] || cat;
+            const active = cat === adminCurrentCategory ? 'active' : '';
+            html += `<button class="admin-sidebar-item ${active}" data-admin-cat="${cat}">${label}</button>`;
+        });
+
+        sb.innerHTML = html;
+
+        sb.querySelectorAll('[data-admin-cat]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                selectAdminCategory(btn.dataset.adminCat);
+            });
+        });
+    }
+
+    function selectAdminCategory(category) {
+        adminCurrentCategory = category;
+        // Highlight sidebar
+        $('#admin-sidebar').querySelectorAll('.admin-sidebar-item').forEach((b) => {
+            b.classList.toggle('active', b.dataset.adminCat === category);
+        });
+
+        const saveBtn = $('#admin-save-btn');
+        const settingsPanel = $('#admin-settings-panel');
+        const historyContainer = $('#admin-history-container');
+
+        if (category === 'history') {
+            if (saveBtn) saveBtn.style.display = 'none';
+            if (settingsPanel) settingsPanel.style.display = 'none';
+            if (historyContainer) {
+                historyContainer.style.display = 'block';
+                renderHistory();
+            }
+            return;
+        }
+
+        // Для обычной категории: показать save-btn и настройки
+        if (saveBtn) saveBtn.style.display = '';
+        if (settingsPanel) settingsPanel.style.display = '';
+        if (historyContainer) historyContainer.style.display = 'none';
+
+        const settings = adminSettingsCache[category] || [];
+        renderSettings(category, settings);
+
+        // Also hide old history panel if present
+        const hp = $('#admin-history-panel');
+        if (hp) hp.style.display = 'none';
+    }
+
+    function renderSettings(category, settings) {
+        const panel = $('#admin-settings-panel');
+
+        // Make sure panel is visible
+        panel.style.display = '';
+
+        const catLabel = ADMIN_CATEGORIES[category] || category;
+
+        if (!settings || !settings.length) {
+            panel.innerHTML = '<p style="color:var(--text-muted);padding:20px 0;">Нет настроек в категории</p>';
+            return;
+        }
+
+        let html = `<h3 style="margin-bottom:16px;font-weight:600;">${catLabel}</h3>`;
+        html += `<p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">Категория: <code>${category}</code></p>`;
+
+        for (const s of settings) {
+            const inputType = getAdminInputType(s.key, s.value);
+            const desc = s.description
+                ? `<div class="admin-setting-description">${s.description}</div>`
+                : '';
+            const val = formatAdminValue(s.value);
+
+            html += '<div class="admin-setting-group" data-setting-id="' + s.id + '">';
+            html += '<div class="admin-setting-label">' + s.key + '</div>';
+            html += desc;
+
+            if (inputType === 'textarea') {
+                html += '<textarea class="admin-textarea" data-setting-key="' + s.key + '" data-setting-id="' + s.id + '" rows="10">' + escapeHtml(val) + '</textarea>';
+            } else if (inputType === 'toggle') {
+                const checked = val === 'true' || val === true ? 'checked' : '';
+                html += '<div class="admin-toggle-wrapper">';
+                html += '<label class="admin-toggle">';
+                html += '<input type="checkbox" data-setting-key="' + s.key + '" data-setting-id="' + s.id + '" ' + checked + '>';
+                html += '<span class="admin-toggle-slider"></span>';
+                html += '</label>';
+                html += '<span class="admin-toggle-value">' + (checked ? 'включено' : 'выключено') + '</span>';
+                html += '</div>';
+            } else if (inputType === 'number-float') {
+                html += '<input type="number" class="admin-number" data-setting-key="' + s.key + '" data-setting-id="' + s.id + '" step="0.01" value="' + val + '">';
+            } else if (inputType === 'number') {
+                html += '<input type="number" class="admin-number" data-setting-key="' + s.key + '" data-setting-id="' + s.id + '" step="1" value="' + val + '">';
+            } else {
+                html += '<input type="text" class="admin-input" data-setting-key="' + s.key + '" data-setting-id="' + s.id + '" value="' + escapeHtml(val) + '">';
+            }
+
+            html += '</div>';
+        }
+
+        panel.innerHTML = html;
+
+        // Toggle change handler — update label
+        panel.querySelectorAll('.admin-toggle input[type="checkbox"]').forEach((cb) => {
+            cb.addEventListener('change', function () {
+                const wrapper = this.closest('.admin-toggle-wrapper');
+                if (wrapper) {
+                    const lbl = wrapper.querySelector('.admin-toggle-value');
+                    if (lbl) lbl.textContent = this.checked ? 'включено' : 'выключено';
+                }
+            });
+        });
+    }
+
+    function formatAdminValue(val) {
+        if (val === null || val === undefined) return '';
+        if (typeof val === 'boolean') return val ? 'true' : 'false';
+        if (typeof val === 'object') {
+            try { return JSON.stringify(val, null, 2); } catch { return String(val); }
+        }
+        return String(val);
+    }
+
+    function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    function collectAdminSettings(category) {
+        const settings = adminSettingsCache[category] || [];
+        return settings.map((s) => {
+            const group = document.querySelector(
+                `[data-setting-id="${s.id}"]`
+            );
+            const input = group
+                ? group.querySelector('input, textarea, select')
+                : null;
+            if (!input) return { id: s.id, value: s.value };
+            let val;
+            if (input.type === 'checkbox') {
+                val = input.checked;
+            } else if (input.type === 'number') {
+                val = input.value.includes('.') ? parseFloat(input.value) : parseInt(input.value, 10);
+                if (isNaN(val)) val = input.value;
+            } else if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
+                const raw = input.value;
+                // Try parse as JSON if looks like array/object
+                const trimmed = raw.trim();
+                if ((trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+                    (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+                    try { val = JSON.parse(trimmed); } catch { val = raw; }
+                } else if (trimmed === 'true') {
+                    val = true;
+                } else if (trimmed === 'false') {
+                    val = false;
+                } else if (trimmed === '' || trimmed === 'null') {
+                    val = null;
+                } else {
+                    val = raw;
+                }
+            } else {
+                val = input.value;
+            }
+            return { id: s.id, value: val };
+        });
+    }
+
+    async function saveCategorySettings() {
+        if (!adminCurrentCategory) return;
+        const cat = adminCurrentCategory;
+        const updates = collectAdminSettings(cat);
+        const btn = $('#admin-save-btn');
+        btn.disabled = true;
+        btn.textContent = '⏳ Сохранение...';
+
+        try {
+            // PUT updateCategory уже перезагружает кэш на сервере и возвращает свежие настройки
+            const result = await AdminAPI.updateCategory(cat, updates);
+            adminSettingsCache[cat] = result.settings || [];
+            renderSettings(cat, adminSettingsCache[cat]);
+            toast('✅ Настройки сохранены', 'success');
+        } catch (e) {
+            toast('❌ ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '💾 Сохранить все';
+        }
+    }
+
+
+    async function renderHistory() {
+        const container = $('#admin-history-container');
+        if (!container) return;
+
+        container.innerHTML = '<div class="loading">Загрузка истории...</div>';
+        container.style.display = 'block';
+
+        // Hide save-btn
+        const saveBtn = $('#admin-save-btn');
+        if (saveBtn) saveBtn.style.display = 'none';
+
+        try {
+            const records = await AdminAPI.getHistory(100);
+            if (!records || !records.length) {
+                container.innerHTML = '<p style="color:var(--text-muted);padding:20px 0;">История изменений пуста</p>';
+                return;
+            }
+
+            let html = '<table class="admin-history-table"><thead><tr>' +
+                '<th>Дата</th><th>Категория</th><th>Ключ</th><th>Старое значение</th><th>Новое значение</th><th>Изменил</th>' +
+                '</tr></thead><tbody>';
+
+            for (const record of records) {
+                const oldVal = typeof record.old_value === 'object'
+                    ? JSON.stringify(record.old_value, null, 2)
+                    : String(record.old_value || '');
+                const newVal = typeof record.new_value === 'object'
+                    ? JSON.stringify(record.new_value, null, 2)
+                    : String(record.new_value || '');
+
+                const date = record.changed_at
+                    ? new Date(record.changed_at).toLocaleString('ru-RU')
+                    : '—';
+
+                html += `<tr>
+                    <td style="white-space:nowrap;">${date}</td>
+                    <td>${record.category || '—'}</td>
+                    <td>${record.setting_key || record.key || '—'}</td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">${escapeHtml(oldVal.substring(0, 100))}</td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">${escapeHtml(newVal.substring(0, 100))}</td>
+                    <td>${record.changed_by || '—'}</td>
+                </tr>`;
+            }
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<p style="color:var(--error);padding:20px 0;">Ошибка загрузки истории: ${err.message}</p>`;
+        }
+    }
+
+    // Bind admin action buttons
+    // Admin save button
+    $('#admin-save-btn')?.addEventListener('click', saveCategorySettings);
 
     // ─── Auto-Login on Page Load ────────────────
     if (api.token) {

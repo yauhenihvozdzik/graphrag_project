@@ -19,6 +19,7 @@ from app.core.prompts import (
     SYSTEM_PROMPT, NO_CONTEXT_MESSAGE, CONTEXT_HEADER,
     SPELLING_CORRECTION_PROMPT,
 )
+from app.core.settings_registry import SettingsRegistry
 
 
 def build_system_prompt(context: str, graph_context_stats: dict = None) -> str:
@@ -31,7 +32,16 @@ def build_system_prompt(context: str, graph_context_stats: dict = None) -> str:
     Returns:
         Строка с полным системным промптом.
     """
-    messages = [SYSTEM_PROMPT]
+    from app.core.logging import logger
+    registry = SettingsRegistry()
+    system_prompt = registry.get_system_prompt()
+    context_header = registry.get("prompts", "context_header", CONTEXT_HEADER)
+    no_context_msg = registry.get("prompts", "no_context_message", NO_CONTEXT_MESSAGE)
+    logger.info("build_system_prompt_debug",
+                system_prompt_preview=system_prompt[:80] if system_prompt else "None",
+                registry_keys=list(registry._settings.keys()))
+
+    messages = [system_prompt]
     
     # Добавляем информацию о графе знаний для контекста
     if graph_context_stats:
@@ -44,9 +54,9 @@ def build_system_prompt(context: str, graph_context_stats: dict = None) -> str:
                           f"- Описывай все обнаруженные взаимосвязи между сущностями.")
     
     if context:
-        messages.append(f"\n{CONTEXT_HEADER}\n{context}")
+        messages.append(f"\n{context_header}\n{context}")
     else:
-        messages.append(f"\n{NO_CONTEXT_MESSAGE}")
+        messages.append(f"\n{no_context_msg}")
     return "\n".join(messages)
 
 
@@ -136,7 +146,8 @@ def is_off_topic(query: str) -> bool:
     if not query or not query.strip():
         return True
     query_lower = query.lower()
-    for kw in BUSINESS_DOMAIN_KEYWORDS:
+    keywords = SettingsRegistry().get_off_topic_keywords()
+    for kw in keywords:
         if kw.lower() in query_lower:
             return False  # found business keyword — the query IS in domain
     return True  # no business keywords found — off-topic
@@ -203,13 +214,17 @@ async def correct_spelling(text: str, ollama_service) -> str:
         return text  # не тратим LLM-вызов на чистый запрос
 
     try:
+        registry = SettingsRegistry()
+        spelling_prompt = registry.get_spelling_prompt()
+        temperature_spelling = registry.get_temperature_spelling()
+
         messages = [
-            {"role": "system", "content": SPELLING_CORRECTION_PROMPT},
+            {"role": "system", "content": spelling_prompt},
             {"role": "user", "content": text},
         ]
         corrected = await ollama_service.chat(
             messages=messages,
-            temperature=LLM_TEMPERATURE_SPELLING,
+            temperature=temperature_spelling,
             options={"num_predict": min(len(text) * LLM_SPELLING_LENGTH_MULTIPLIER, LLM_SPELLING_MAX_TOKENS_BASE)},
         )
         corrected = corrected.strip().strip('"').strip("'")

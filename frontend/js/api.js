@@ -20,6 +20,31 @@ class GraphRAGApi {
     setToken(token) { this.token = token; localStorage.setItem('graphrag_token', token); }
     clearToken() { this.token = null; localStorage.removeItem('graphrag_token'); localStorage.removeItem('graphrag_user'); }
 
+    // ── Generic HTTP helpers ─────────────────────
+    async get(path) {
+        const r = await fetch(`${API_BASE}${path}`, { headers: this.headers });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || e.message || 'Ошибка запроса'); }
+        return r.json();
+    }
+
+    async post(path, body = {}) {
+        const r = await fetch(`${API_BASE}${path}`, { method: 'POST', headers: this.headers, body: JSON.stringify(body) });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || e.message || 'Ошибка запроса'); }
+        return r.json();
+    }
+
+    async put(path, body = {}) {
+        const r = await fetch(`${API_BASE}${path}`, { method: 'PUT', headers: this.headers, body: JSON.stringify(body) });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || e.message || 'Ошибка запроса'); }
+        return r.json();
+    }
+
+    async del(path) {
+        const r = await fetch(`${API_BASE}${path}`, { method: 'DELETE', headers: this.headers });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || e.message || 'Ошибка запроса'); }
+        return r.json();
+    }
+
     setAdminToken(token) { this.adminToken = token; localStorage.setItem('graphrag_admin_token', token); }
     restoreAdminToken() {
         if (this.adminToken) { this.setToken(this.adminToken); this.adminToken = null; localStorage.removeItem('graphrag_admin_token'); return true; }
@@ -78,5 +103,15 @@ class GraphRAGApi {
     async updateDepartment(id, name, code, desc) { const r = await fetch(`${API_BASE}/departments/${id}`, { method: 'PUT', headers: this.headers, body: JSON.stringify({ name, code, description: desc || null }) }); if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); } return r.json(); }
     async deleteDepartment(id) { const r = await fetch(`${API_BASE}/departments/${id}`, { method: 'DELETE', headers: this.headers }); if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); } return r.json(); }
 }
+
+// ── Admin Settings API ────────────────────────────
+const AdminAPI = {
+    getAllSettings: () => api.get('/admin/settings'),
+    getCategorySettings: (category) => api.get(`/admin/settings/${category}`),
+    updateSetting: (id, value) => api.put(`/admin/settings/${id}`, { value }),
+    updateCategory: (category, settings) => api.put(`/admin/settings/category/${category}`, { settings }),
+    reloadSettings: () => api.post('/admin/settings/reload'),
+    getHistory: (limit = 50, offset = 0) => api.get(`/admin/settings/history?limit=${limit}&offset=${offset}`),
+};
 
 window.api = new GraphRAGApi();

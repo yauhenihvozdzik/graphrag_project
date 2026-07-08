@@ -1,13 +1,17 @@
 """PostgreSQL database service for sessions, users, departments, and file metadata."""
 
-from typing import List, Optional
+from typing import Any, List, Optional
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.pool import QueuePool
 from sqlmodel import Session, col, create_engine, select, func
 
+import json
+from datetime import datetime, timezone
+
 from app.core.config import Environment, settings
 from app.core.logging import logger
+from app.models.admin import AdminSetting, AdminSettingsAudit, AdminSettingsVersion
 from app.models.user import User
 from app.models.session import ChatSession
 from app.models.message import ChatMessage
@@ -258,6 +262,133 @@ class DatabaseService:
             for m in ms: s.delete(m)
             s.commit()
             return len(ms)
+
+    # ─── Admin Settings ───
+
+    def get_all_admin_settings(self) -> list[AdminSetting]:
+        """Return all active admin settings.
+
+        Returns:
+            List of AdminSetting ORM objects with ``is_active == True``.
+        """
+        with Session(self.engine) as s:
+            return list(
+                s.exec(
+                    select(AdminSetting).where(AdminSetting.is_active == True)  # noqa: E712
+                ).all()
+            )
+
+    def get_admin_settings_by_category(self, category: str) -> list[AdminSetting]:
+        """Return active settings for a given *category*."""
+        with Session(self.engine) as s:
+            return list(
+                s.exec(
+                    select(AdminSetting).where(
+                        AdminSetting.category == category,
+                        AdminSetting.is_active == True,  # noqa: E712
+                    )
+                ).all()
+            )
+
+    def update_admin_setting(
+        self, setting_id: int, value: Any, updated_by: int,
+    ) -> Optional[AdminSetting]:
+        """Update a setting's value and create an audit trail entry.
+
+        Args:
+            setting_id: PK of the setting to update.
+            value: New value (will be JSON-serialised).
+            updated_by: User ID making the change.
+
+        Returns:
+            Updated AdminSetting or ``None`` if not found.
+        """
+        with Session(self.engine) as s:
+            setting = s.get(AdminSetting, setting_id)
+            if not setting:
+                return None
+
+            old_value = setting.value
+            new_value_str = json.dumps(value, ensure_ascii=False) if not isinstance(value, str) else value
+
+            # Update the setting
+            setting.value = new_value_str
+            setting.updated_by = updated_by
+            setting.updated_at = datetime.now(timezone.utc)
+
+            # Create audit record
+            audit = AdminSettingsAudit(
+                setting_id=setting.id,
+                old_value=old_value,
+                new_value=new_value_str,
+                changed_by=updated_by,
+                changed_at=datetime.now(timezone.utc),
+            )
+            s.add(audit)
+            s.commit()
+            s.refresh(setting)
+            logger.info(
+                "admin_setting_updated",
+                setting_id=setting_id,
+                category=setting.category,
+                key=setting.key,
+            )
+            return setting
+
+    def create_admin_setting(
+        self, category: str, key: str, value: Any, description: str = "",
+    ) -> AdminSetting:
+        """Create a new admin setting.
+
+        Args:
+            category: Setting category.
+            key: Setting key (unique within category).
+            value: Value (will be JSON-serialised).
+            description: Optional human-readable description.
+
+        Returns:
+            The newly created AdminSetting.
+        """
+        value_str = json.dumps(value, ensure_ascii=False) if not isinstance(value, str) else value
+        with Session(self.engine) as s:
+            setting = AdminSetting(
+                category=category,
+                key=key,
+                value=value_str,
+                description=description or None,
+            )
+            s.add(setting)
+            s.commit()
+            s.refresh(setting)
+            logger.info(
+                "admin_setting_created",
+                id=setting.id,
+                category=category,
+                key=key,
+            )
+            return setting
+
+    def get_admin_settings_history(
+        self, limit: int = 50, offset: int = 0,
+    ) -> list[AdminSettingsAudit]:
+        """Return paginated audit history for admin settings.
+
+        Args:
+            limit: Max records to return.
+            offset: Number of records to skip.
+
+        Returns:
+            List of AdminSettingsAudit records ordered by ``changed_at`` DESC.
+        """
+        with Session(self.engine) as s:
+            return list(
+                s.exec(
+                    select(AdminSettingsAudit)
+                    .order_by(AdminSettingsAudit.changed_at.desc())
+                    .offset(offset)
+                    .limit(limit)
+                ).all()
+            )
 
 
 database_service = DatabaseService()

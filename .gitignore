@@ -119,6 +119,7 @@ site/
 .ruff_cache/
 
 # ─── Temporary files ───────────────────────────
+temp/
 *.tmp
 *.temp
 *.bak

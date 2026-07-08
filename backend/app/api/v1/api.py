@@ -5,6 +5,7 @@ Aggregates all sub-routers for the GraphRAG platform endpoints.
 
 from fastapi import APIRouter, Request
 
+from app.api.v1.admin import router as admin_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.chat import router as chat_router
 from app.api.v1.ingest import router as ingest_router
@@ -23,6 +24,7 @@ api_router.include_router(ingest_router, prefix="", tags=["ingest"])
 api_router.include_router(graph_router, prefix="/graph", tags=["graph"])
 api_router.include_router(tests_router, prefix="/tests", tags=["tests"])
 api_router.include_router(departments_router, prefix="/departments", tags=["departments"])
+api_router.include_router(admin_router, prefix="", tags=["admin"])
 
 
 @api_router.get("/health", response_model=HealthResponse)
