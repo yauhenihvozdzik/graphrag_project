@@ -66,12 +66,7 @@ class GraphRAGMemory:
             except Exception as e:
                 logger.warning("memory_graph_store_failed", error=str(e))
 
-        logger.debug(
-            "interaction_stored",
-            user_id=user_id,
-            session_id=session_id,
-            entities_count=len(entities),
-        )
+        # interaction stored successfully (omitted debug log for production)
 
     async def retrieve_context(
         self,

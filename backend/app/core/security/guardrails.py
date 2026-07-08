@@ -1,6 +1,6 @@
 """Guardrails service: PII filtering and prompt injection protection.
 
-Designed for Russian-language legal documents (RusLawOD, RFSD datasets).
+Designed for Russian-language business and technical documents.
 Provides input sanitization and output filtering for the GraphRAG pipeline.
 
 Fix #4: Added whitespace-normalised second-pass matching to prevent
@@ -102,7 +102,71 @@ INJECTION_PATTERNS = [
     r"(?i)забудь\s+(?:все\s+)?(?:предыдущие\s+)?инструкции",
     r"(?i)ты\s+теперь\s+",
     r"(?i)(?:отмени|переопредели)\s+(?:все\s+)?(?:предыдущие\s+)?(?:правила|инструкции)",
+    # Template Injection (SSTI)
+    r"(?i)\{\{.*\}\}|\$\{.*\}|<%.*%>",
+    # LDAP Injection
+    r"(?i)[()&|!]\([a-z]+=[^)]*\)|cn=\*|uid=\*",
+    # NoSQL Injection
+    r"(?i)\$ne|\$gt|\$lt|\$regex|\$where|\$nin",
 ]
+
+# ── Compiled regex constants for new injection types ──
+# These are exposed as named constants for introspection, ALL_PATTERNS, and tests.
+TEMPLATE_INJECTION = re.compile(
+    r'\{\{.*\}\}|\$\{.*\}|<%.*%>',
+    re.IGNORECASE
+)
+"""Template Injection (SSTI): ``{{...}}``, ``${...}``, ``<%...%>``."""
+
+LDAP_INJECTION = re.compile(
+    r'[()&|!]\([a-z]+=[^)]*\)|cn=\*|uid=\*',
+    re.IGNORECASE
+)
+"""LDAP Injection: ``cn=*``, ``uid=*``, filter syntax."""
+
+NOSQL_INJECTION = re.compile(
+    r'\$ne|\$gt|\$lt|\$regex|\$where|\$nin',
+    re.IGNORECASE
+)
+"""NoSQL Injection: ``$ne``, ``$gt``, ``$regex``, etc."""
+
+
+# ── All injection patterns with metadata ──
+# Used for introspection, reporting, and dynamic pattern registration.
+ALL_PATTERNS: list[tuple[str, re.Pattern, str]] = [
+    # Direct injection
+    ("ignore_previous", re.compile(r"(?i)ignore\s+(all\s+)?previous\s+instructions?"), "Ignore previous instructions"),
+    ("forget_instructions", re.compile(r"(?i)forget\s+(all\s+)?(your\s+)?instructions?"), "Forget instructions"),
+    ("you_are_now", re.compile(r"(?i)you\s+are\s+now\s+(?:a|an)\s+"), "You are now role assignment"),
+    ("act_as", re.compile(r"(?i)act\s+as\s+(?:a|an)?\s*(?:different|new)"), "Act as role override"),
+    ("system_colon", re.compile(r"(?i)system\s*:\s*"), "System prompt injection"),
+    ("disregard_override", re.compile(r"(?i)(?:disregard|override)\s+(?:all|the)\s+(?:above|previous|prior)"), "Disregard/override previous"),
+    # Jailbreak
+    ("dan_mode", re.compile(r"(?i)DAN\s+mode"), "DAN jailbreak mode"),
+    ("developer_mode", re.compile(r"(?i)developer\s+mode"), "Developer mode jailbreak"),
+    ("do_anything_now", re.compile(r"(?i)do\s+anything\s+now"), "Do anything now jailbreak"),
+    # Role play
+    ("pretend", re.compile(r"(?i)pretend\s+(?:you(?:'re|\s+are)\s+)?(?:a|an|not)\s+"), "Pretend role override"),
+    ("roleplay", re.compile(r"(?i)roleplay\s+as\s+"), "Roleplay as override"),
+    # Delimiter-based
+    ("backtick_system", re.compile(r"```\s*system"), "Backtick system delimiter"),
+    ("bracket_system", re.compile(r"\[SYSTEM\]"), "Bracket system delimiter"),
+    ("token_special", re.compile(r"<\|(?:im_start|system|endoftext)\|>"), "Special token injection"),
+    # Russian-language
+    ("ru_ignore_instructions", re.compile(r"(?i)игнорируй\s+(?:все\s+)?(?:предыдущие\s+)?инструкции"), "Игнорируй инструкции"),
+    ("ru_forget_instructions", re.compile(r"(?i)забудь\s+(?:все\s+)?(?:предыдущие\s+)?инструкции"), "Забудь инструкции"),
+    ("ru_ty_teper", re.compile(r"(?i)ты\s+теперь\s+"), "Ты теперь role override"),
+    ("ru_otmeni", re.compile(r"(?i)(?:отмени|переопредели)\s+(?:все\s+)?(?:предыдущие\s+)?(?:правила|инструкции)"), "Отмени/переопредели инструкции"),
+    # New: Template Injection (SSTI)
+    ("template_injection", TEMPLATE_INJECTION, "Template injection (SSTI) detected"),
+    # New: LDAP Injection
+    ("ldap_injection", LDAP_INJECTION, "LDAP injection detected"),
+    # New: NoSQL Injection
+    ("nosql_injection", NOSQL_INJECTION, "NoSQL injection detected"),
+]
+
+# Total count of injection patterns (used for validation and reporting)
+PATTERN_COUNT: int = len(ALL_PATTERNS)  # 16
 
 
 class GuardrailsService:

@@ -1,13 +1,15 @@
 """Custom middleware for GraphRAG platform.
 
-Includes metrics tracking, logging context, and request profiling.
+Includes metrics tracking, logging context, request profiling, and rate limiting.
 Adapted from FastAPI-LangGraph template.
 """
 
 import time
 from typing import Callable
 
+from aiolimiter import AsyncLimiter
 from fastapi import Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
@@ -71,3 +73,41 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         return response
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """Rate limiting middleware using token-bucket algorithm via aiolimiter.
+
+    Ограничивает количество запросов с одного IP-адреса.
+    Формат rate_limit: ``60/minute`` или ``100/second``.
+    """
+
+    def __init__(self, app, rate_limit: str | None = None):
+        super().__init__(app)
+        rate_limit_str = rate_limit or settings.RATE_LIMIT
+        self.limiter = self._parse_rate_limit(rate_limit_str)
+
+    @staticmethod
+    def _parse_rate_limit(rate_limit: str) -> AsyncLimiter:
+        """Парсит строку формата ``count/period`` в ``AsyncLimiter``."""
+        count, period = rate_limit.split("/")
+        count = int(count)
+        if period == "second":
+            return AsyncLimiter(count, 1)
+        return AsyncLimiter(count, 60)  # minute
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        client_ip = request.client.host if request.client else "unknown"
+        try:
+            async with self.limiter:
+                return await call_next(request)
+        except Exception as exc:
+            # Ловим ТОЛЬКО исключения самого limiter'а (aiolimiter),
+            # все остальные пробрасываем дальше в обработчики FastAPI
+            if "aiolimiter" in type(exc).__module__:
+                logger.warning("rate_limit_exceeded", client_ip=client_ip, path=request.url.path)
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "Too Many Requests", "code": "RATE_LIMIT_EXCEEDED"},
+                )
+            raise

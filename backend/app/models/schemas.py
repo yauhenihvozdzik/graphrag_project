@@ -293,6 +293,24 @@ class AdminSettingsHistory(BaseModel):
     changed_by: Optional[str] = None
 
 
+# ── Update Schemas (Mass Assignment Prevention) ──
+
+
+class UpdateUserRequest(BaseModel):
+    """Whitelist of allowed fields for updating a user."""
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    department_id: Optional[int] = None
+    password: Optional[str] = None
+
+
+class UpdateDocumentRequest(BaseModel):
+    """Whitelist of allowed fields for updating a document."""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[list[str]] = None
+
+
 # ── Department Schemas ──
 
 class DepartmentCreate(BaseModel):

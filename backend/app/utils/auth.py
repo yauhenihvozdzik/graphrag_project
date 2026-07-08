@@ -3,16 +3,33 @@
 Adapted from FastAPI-LangGraph template.
 """
 
+import os
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from jose import JWTError, jwt
+import jwt
 
 from app.core.config import settings
 from app.core.logging import logger
 from app.models.schemas import Token
 from app.utils.sanitization import sanitize_string
+
+
+def _load_rsa_keys(settings_obj):
+    """Загрузка RSA-ключей с graceful fallback на HS256."""
+    private_key_path = settings_obj.JWT_PRIVATE_KEY_PATH
+    public_key_path = settings_obj.JWT_PUBLIC_KEY_PATH
+
+    if os.path.exists(private_key_path) and os.path.exists(public_key_path):
+        with open(private_key_path, "r") as f:
+            private_key = f.read()
+        with open(public_key_path, "r") as f:
+            public_key = f.read()
+        return private_key, public_key, "RS256"
+
+    # Fallback на HS256 для обратной совместимости
+    return settings_obj.JWT_SECRET_KEY, settings_obj.JWT_SECRET_KEY, "HS256"
 
 
 def create_access_token(
@@ -32,17 +49,18 @@ def create_access_token(
     Returns:
         Token with access_token, type, and expiration.
     """
-    expire = datetime.now(UTC) + (expires_delta or timedelta(days=settings.JWT_ACCESS_TOKEN_EXPIRE_DAYS))
+    private_key, _, algorithm = _load_rsa_keys(settings)
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(days=settings.JWT_ACCESS_TOKEN_EXPIRE_DAYS))
 
     to_encode = {
         "sub": str(user_id),
         "email": email,
         "role": role,
         "exp": expire,
-        "iat": datetime.now(UTC),
+        "iat": datetime.now(timezone.utc),
     }
 
-    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, private_key, algorithm=algorithm)
     logger.info("token_created", user_id=user_id, expires_at=expire.isoformat())
 
     return Token(access_token=encoded_jwt, expires_at=expire)
@@ -66,8 +84,10 @@ def verify_token(token: str) -> Optional[dict]:
     if not re.match(r"^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$", token):
         raise ValueError("Invalid token format")
 
+    _, public_key, algorithm = _load_rsa_keys(settings)
+
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        payload = jwt.decode(token, public_key, algorithms=[algorithm, "HS256"])
         user_id = payload.get("sub")
         if user_id is None:
             return None
@@ -76,6 +96,6 @@ def verify_token(token: str) -> Optional[dict]:
             "email": payload.get("email", ""),
             "role": payload.get("role", "viewer"),
         }
-    except JWTError as e:
+    except jwt.PyJWTError as e:
         logger.warning("token_verification_failed", error=str(e))
         return None

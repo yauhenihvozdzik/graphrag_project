@@ -82,6 +82,7 @@ services:
     # NOTE: GPU acceleration via nvidia container-toolkit is only available on Linux/Windows hosts.
     # On macOS (Docker Desktop), GPU passthrough is not supported — Ollama will run on CPU.
     # On Linux with NVIDIA GPU, uncomment the deploy section below:
+    # NOTE: GPU acceleration is commented out intentionally — uncomment for GPU-enabled hosts
     # deploy:
     #   resources:
     #     reservations:
@@ -163,6 +164,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
+      RATE_LIMIT: "10000/minute"
       OLLAMA_BASE_URL: http://ollama:11434
       NEO4J_URI: bolt://neo4j:7687
       QDRANT_HOST: qdrant

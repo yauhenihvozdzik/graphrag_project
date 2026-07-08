@@ -95,8 +95,6 @@ def upgrade() -> None:
         [sa.text("changed_at DESC")],
     )
 
-
-
 def downgrade() -> None:
     """Drop admin_settings tables in reverse dependency order."""
     op.drop_index(

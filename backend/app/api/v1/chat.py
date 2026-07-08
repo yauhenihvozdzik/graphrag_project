@@ -13,6 +13,8 @@ from app.core.security.guardrails import guardrails_service
 from app.core.security.rbac import AccessContext
 from app.models.schemas import ChatRequest, ChatResponse, Message
 from app.services.database import database_service
+from app.models.message import ChatMessage
+from sqlalchemy import select
 
 router = APIRouter()
 
@@ -31,7 +33,13 @@ async def chat(
             return ChatResponse(messages=[Message(role="assistant", content=f"⚠️ Запрос отклонён: {guard_result.blocked_reason}")], sources=[])
 
         try:
-            database_service.save_message(user_id=current_user["user_id"], role="user", content=last_msg.content)
+            async with database_service.async_session() as session:
+                m = ChatMessage(
+                    user_id=current_user["user_id"], role="user",
+                    content=last_msg.content,
+                )
+                session.add(m)
+                await session.commit()
         except Exception as e:
             logger.warning("save_user_message_failed", error=str(e))
 
@@ -48,10 +56,14 @@ async def chat(
         sources = result.get("sources", [])
 
         try:
-            database_service.save_message(
-                user_id=current_user["user_id"], role="assistant", content=response_text,
-                sources=json.dumps(sources, ensure_ascii=False) if sources else None,
-            )
+            async with database_service.async_session() as session:
+                m = ChatMessage(
+                    user_id=current_user["user_id"], role="assistant",
+                    content=response_text,
+                    sources=json.dumps(sources, ensure_ascii=False) if sources else None,
+                )
+                session.add(m)
+                await session.commit()
         except Exception as e:
             logger.warning("save_assistant_message_failed", error=str(e))
 
@@ -74,8 +86,16 @@ async def chat_stream(
         async def err(): yield f"data: {json.dumps({'event':'error','data':guard_result.blocked_reason})}\n\n"; yield "data: [DONE]\n\n"
         return StreamingResponse(err(), media_type="text/event-stream")
 
-    try: database_service.save_message(user_id=current_user["user_id"], role="user", content=last_msg.content)
-    except Exception: pass
+    try:
+        async with database_service.async_session() as session:
+            m = ChatMessage(
+                user_id=current_user["user_id"], role="user",
+                content=last_msg.content,
+            )
+            session.add(m)
+            await session.commit()
+    except Exception as e:
+        logger.warning(f"Chat cleanup error: {e}", exc_info=True)
 
     messages = [{"role": m.role, "content": m.content} for m in chat_request.messages]
     messages[-1]["content"] = guard_result.sanitized_text
@@ -89,8 +109,16 @@ async def chat_stream(
                 full_response += chunk
                 yield f"data: {json.dumps({'event':'token','data':chunk}, ensure_ascii=False)}\n\n"
             yield "data: [DONE]\n\n"
-            try: database_service.save_message(user_id=current_user["user_id"], role="assistant", content=full_response)
-            except Exception: pass
+            try:
+                async with database_service.async_session() as session:
+                    m = ChatMessage(
+                        user_id=current_user["user_id"], role="assistant",
+                        content=full_response,
+                    )
+                    session.add(m)
+                    await session.commit()
+            except Exception as e:
+                logger.warning(f"Chat save assistant message error: {e}", exc_info=True)
         except Exception as e:
             logger.exception("chat_stream_failed", error=str(e))
             yield f"data: {json.dumps({'event':'error','data':str(e)})}\n\n"
@@ -102,12 +130,19 @@ async def chat_stream(
 @router.get("/chat/history")
 async def get_chat_history(current_user: dict = Depends(get_current_user), limit: int = 100):
     try:
-        messages = database_service.get_chat_history(user_id=current_user["user_id"], limit=limit)
-        return {"success": True, "messages": [
-            {"id": m.id, "role": m.role, "content": m.content, "sources": json.loads(m.sources) if m.sources else None,
-             "created_at": m.created_at.isoformat() if m.created_at else None}
-            for m in messages
-        ]}
+        async with database_service.async_session() as session:
+            result = await session.execute(
+                select(ChatMessage)
+                .where(ChatMessage.user_id == current_user["user_id"])
+                .order_by(ChatMessage.created_at.asc())
+                .limit(limit)
+            )
+            messages = list(result.scalars().all())
+            return {"success": True, "messages": [
+                {"id": m.id, "role": m.role, "content": m.content, "sources": json.loads(m.sources) if m.sources else None,
+                 "created_at": m.created_at.isoformat() if m.created_at else None}
+                for m in messages
+            ]}
     except Exception as e:
         logger.exception("get_chat_history_failed", error=str(e))
         raise HTTPException(status_code=500, detail="Ошибка получения истории")
@@ -116,8 +151,16 @@ async def get_chat_history(current_user: dict = Depends(get_current_user), limit
 @router.delete("/chat/history")
 async def clear_chat_history(current_user: dict = Depends(get_current_user)):
     try:
-        count = database_service.clear_chat_history(user_id=current_user["user_id"])
-        return {"success": True, "deleted": count}
+        async with database_service.async_session() as session:
+            result = await session.execute(
+                select(ChatMessage).where(ChatMessage.user_id == current_user["user_id"])
+            )
+            ms = list(result.scalars().all())
+            for m in ms:
+                await session.delete(m)
+            count = len(ms)
+            await session.commit()
+            return {"success": True, "deleted": count}
     except Exception as e:
         logger.exception("clear_chat_history_failed", error=str(e))
         raise HTTPException(status_code=500, detail="Ошибка очистки истории")

@@ -12,9 +12,7 @@ from typing import Any, Dict, Optional
 
 import structlog
 
-from app.core.config import Environment, settings
-
-settings.LOG_DIR.mkdir(parents=True, exist_ok=True)
+from app.core.constants import Environment
 
 _request_context: ContextVar[Optional[Dict[str, Any]]] = ContextVar("request_context", default=None)
 
@@ -43,6 +41,10 @@ def add_context_to_event_dict(
 
 def configure_logging():
     """Configure structlog with environment-appropriate processors."""
+    from app.core.config import settings
+
+    settings.LOG_DIR.mkdir(parents=True, exist_ok=True)
+
     shared_processors = [
         structlog.contextvars.merge_contextvars,
         add_context_to_event_dict,

@@ -24,7 +24,7 @@ if config.config_file_name is not None:
 # ── Load real DSN from settings ──
 from app.core.config import settings
 
-config.set_main_option("sqlalchemy.url", settings.postgres_dsn)
+config.set_main_option("sqlalchemy.url", settings.SYNC_DATABASE_URL)
 
 # ── Import all SQLModel tables for autogenerate ──
 from app.models.user import User  # noqa: E402

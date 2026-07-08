@@ -63,6 +63,19 @@ DEFAULTS: list[tuple[str, str, str, str]] = [
     ("rag_parameters", "reranker_scale_factor", str(settings.RERANKER_SCALE_FACTOR), "Масштабирующий коэффициент реранкера"),
     # ── other ──
     ("other", "allowed_file_extensions", json.dumps(list(ALLOWED_FILE_EXTENSIONS), ensure_ascii=False), "Допустимые расширения файлов для загрузки"),
+    # ── ingestion ──
+    ("ingestion", "chunk_size", str(settings.CHUNK_SIZE), "Размер чанков для разбивки документов"),
+    ("ingestion", "chunk_overlap", str(settings.CHUNK_OVERLAP), "Перекрытие чанков"),
+    ("ingestion", "entity_extraction_batch_size", str(settings.ENTITY_EXTRACTION_BATCH_SIZE), "Размер батча NER"),
+    # ── llm ──
+    ("llm", "ollama_model", settings.OLLAMA_MODEL, "Модель для генерации ответов"),
+    ("llm", "ollama_embedding_model", settings.OLLAMA_EMBEDDING_MODEL, "Модель для эмбеддингов"),
+    ("llm", "ollama_timeout", str(settings.OLLAMA_TIMEOUT), "Таймаут Ollama"),
+    # ── auth ──
+    ("auth", "jwt_access_token_expire_days", str(settings.JWT_ACCESS_TOKEN_EXPIRE_DAYS), "Время жизни JWT токена"),
+    # ── logging ──
+    ("logging", "log_level", settings.LOG_LEVEL, "Уровень логирования"),
+    ("logging", "log_format", settings.LOG_FORMAT, "Формат логов"),
 ]
 
 
@@ -82,7 +95,7 @@ def seed_admin_settings(db_service=None) -> int:
     now = datetime.now(timezone.utc)
     inserted = 0
 
-    with Session(db_service.engine) as s:
+    with Session(db_service.sync_engine) as s:
         for category, key, value, description in DEFAULTS:
             existing = s.exec(
                 select(AdminSetting).where(

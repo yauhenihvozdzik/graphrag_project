@@ -31,8 +31,10 @@ class SettingsRegistry:
     _settings: dict[str, dict[str, Any]] = {}  # {category: {key: parsed_value}}
 
     # Compiled regex patterns cached after registration
-    _injection_compiled: list[re.Pattern] = []
-    _pii_compiled: dict[str, tuple[re.Pattern, re.Pattern, str]] = {}
+    # NOTE: initialised as None so that reload() can invalidate them
+    # via _invalidate_compiled_patterns() and force recompilation.
+    _injection_compiled: list[re.Pattern] | None = None
+    _pii_compiled: dict[str, tuple[re.Pattern, re.Pattern, str]] | None = None
 
     def __new__(cls) -> "SettingsRegistry":
         if cls._instance is None:
@@ -69,7 +71,11 @@ class SettingsRegistry:
             db_session: Optional async DB session (same semantics as
                 :meth:`initialize`).
         """
+        self._invalidate_compiled_patterns()
         await self.initialize(db_session)
+        # Notify guardrails service about potential config changes
+        from app.core.security.guardrails import guardrails_service
+        guardrails_service.reload_config()
         logger.info("settings_registry_reloaded")
 
     def _rebuild_cache(self, rows: list[Any]) -> None:
@@ -78,6 +84,14 @@ class SettingsRegistry:
         for row in rows:
             cat = self._settings.setdefault(row.category, {})
             cat[row.key] = self._parse_value(row.value)
+
+    def _invalidate_compiled_patterns(self) -> None:
+        """Invalidate cached compiled regex patterns so they are recompiled
+        on the next call to :meth:`get_injection_patterns` or
+        :meth:`get_pii_patterns`."""
+        self._injection_compiled = None
+        self._pii_compiled = None
+        logger.info("compiled_patterns_invalidated")
 
     @staticmethod
     def _parse_value(raw: str) -> Any:
@@ -159,6 +173,32 @@ class SettingsRegistry:
 
         return LLM_TEMPERATURE_NER
 
+    # ── LLM Inference params ─────────────────────────────────────
+
+    def get_max_tokens(self) -> int:
+        val = self.get("llm_temperature", "max_tokens")
+        if val is not None:
+            return int(val)
+        return 2048
+
+    def get_num_ctx(self) -> int:
+        val = self.get("llm_temperature", "num_ctx")
+        if val is not None:
+            return int(val)
+        return 4096
+
+    # ── Other ────────────────────────────────────────────────────
+
+    def get_allowed_file_extensions(self) -> list:
+        val = self.get("other", "allowed_file_extensions")
+        if val is not None:
+            if isinstance(val, str):
+                import json
+                return json.loads(val)
+            return list(val)
+        from app.core.constants import ALLOWED_FILE_EXTENSIONS
+        return ALLOWED_FILE_EXTENSIONS
+
     # ── Guardrails ───────────────────────────────────────────────
 
     def get_guardrails_enabled(self) -> bool:
@@ -189,24 +229,28 @@ class SettingsRegistry:
 
     def get_injection_patterns(self) -> list[re.Pattern]:
         """Return compiled injection regex patterns."""
-        if self._injection_compiled:
+        if self._injection_compiled is not None:
             return self._injection_compiled
         # Fallback: compile from hardcoded constants
         from app.core.security.guardrails import INJECTION_PATTERNS
 
-        return [re.compile(p) for p in INJECTION_PATTERNS]
+        compiled = [re.compile(p) for p in INJECTION_PATTERNS]
+        self._injection_compiled = compiled  # кэшируем
+        return compiled
 
     def get_pii_patterns(self) -> dict[str, tuple[re.Pattern, re.Pattern, str]]:
         """Return compiled PII regex patterns."""
-        if self._pii_compiled:
+        if self._pii_compiled is not None:
             return self._pii_compiled
         # Fallback: use hardcoded constants
         from app.core.security.guardrails import PII_PATTERNS
 
-        return {
+        compiled = {
             name: (re.compile(strict), re.compile(loose), label)
             for name, (strict, loose, label) in PII_PATTERNS.items()
         }
+        self._pii_compiled = compiled  # кэшируем
+        return compiled
 
     def register_injection_patterns(self, patterns: list[str]) -> None:
         """Register and compile injection patterns.
@@ -215,7 +259,7 @@ class SettingsRegistry:
             patterns: List of raw regex strings.
         """
         self._injection_compiled = [re.compile(p) for p in patterns]
-        logger.debug("injection_patterns_registered", count=len(patterns))
+        logger.info("injection_patterns_registered", count=len(patterns))
 
     def register_pii_patterns(self, patterns: dict[str, tuple[str, str, str]]) -> None:
         """Register and compile PII patterns.
@@ -228,7 +272,7 @@ class SettingsRegistry:
             name: (re.compile(strict), re.compile(loose), label)
             for name, (strict, loose, label) in patterns.items()
         }
-        logger.debug("pii_patterns_registered", count=len(patterns))
+        logger.info("pii_patterns_registered", count=len(patterns))
 
     # ── Off-topic ────────────────────────────────────────────────
 
@@ -275,6 +319,70 @@ class SettingsRegistry:
         from app.core.config import settings
 
         return settings.RERANKER_SCALE_FACTOR
+
+    # ── Ingestion ────────────────────────────────────────────────
+
+    def get_chunk_size(self) -> int:
+        val = self.get("ingestion", "chunk_size")
+        if val is not None:
+            return int(val)
+        return 512
+
+    def get_chunk_overlap(self) -> int:
+        val = self.get("ingestion", "chunk_overlap")
+        if val is not None:
+            return int(val)
+        return 64
+
+    def get_entity_extraction_batch_size(self) -> int:
+        val = self.get("ingestion", "entity_extraction_batch_size")
+        if val is not None:
+            return int(val)
+        return 5
+
+    # ── LLM models ───────────────────────────────────────────────
+
+    def get_ollama_model(self) -> str:
+        val = self.get("llm", "ollama_model")
+        if val is not None:
+            return str(val)
+        from app.core.config import settings
+        return settings.OLLAMA_MODEL
+
+    def get_ollama_embedding_model(self) -> str:
+        val = self.get("llm", "ollama_embedding_model")
+        if val is not None:
+            return str(val)
+        from app.core.config import settings
+        return settings.OLLAMA_EMBEDDING_MODEL
+
+    def get_ollama_timeout(self) -> int:
+        val = self.get("llm", "ollama_timeout")
+        if val is not None:
+            return int(val)
+        return 120
+
+    # ── Auth ─────────────────────────────────────────────────────
+
+    def get_jwt_access_token_expire_days(self) -> int:
+        val = self.get("auth", "jwt_access_token_expire_days")
+        if val is not None:
+            return int(val)
+        return 30
+
+    # ── Logging ──────────────────────────────────────────────────
+
+    def get_log_level(self) -> str:
+        val = self.get("logging", "log_level")
+        if val is not None:
+            return str(val)
+        return "INFO"
+
+    def get_log_format(self) -> str:
+        val = self.get("logging", "log_format")
+        if val is not None:
+            return str(val)
+        return "json"
 
 
 # Module-level singleton

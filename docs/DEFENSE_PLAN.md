@@ -54,8 +54,8 @@ Dev tools:    Mailpit :8025, pgAdmin :5050, Open WebUI :3100
 ### 2.3. Сетевая сегментация (Docker Compose)
 
 Две изолированные сети:
-- **DMZ (172.20.0.0/24):** frontend, grafana
-- **Internal (172.21.0.0/24):** backend, PostgreSQL, Neo4j, Qdrant, Ollama, MinIO
+- **DMZ (172.24.0.0/24):** frontend, grafana
+- **Internal (172.25.0.0/24):** backend, PostgreSQL, Neo4j, Qdrant, Ollama, MinIO
 
 Внешний доступ к базам данных возможен только через бэкенд.
 

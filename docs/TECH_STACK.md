@@ -1,3 +1,5 @@
+<!-- AUDIT: updated 2026-07-08 -->
+
 # Технологический стек GraphRAG платформы
 
 > **Платформа**: GraphRAG для анализа корпоративных знаний (юридический домен)
@@ -140,7 +142,7 @@
 
 ---
 
-## Python-зависимости (основные)
+## Python-зависимости (основные и планируемые)
 
 ```toml
 [project]
@@ -173,7 +175,8 @@ dependencies = [
     "httpx>=0.27.0",
 
     # ── Auth ──
-    "python-jose[cryptography]>=3.3.0",
+    "pyjwt>=2.8.0",
+    "cryptography>=41.0.0",
     "bcrypt>=4.0.0",
     "pydantic[email]>=2.0.0",
 
@@ -185,32 +188,36 @@ dependencies = [
 
     # ── Metrics ──
     "prometheus-client>=0.20.0",
-    "starlette-prometheus>=0.9.0",
 
     # ── GPU Monitoring ──
     "nvidia-ml-py>=12.0.0",
 
-    # ── Tracing ──
-    "opentelemetry-api>=1.20.0",
-    "opentelemetry-sdk>=1.20.0",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
-    "opentelemetry-instrumentation-fastapi",
-    "opentelemetry-instrumentation-httpx",
+    # ── Document Processing ──
+    "pymupdf>=1.24.0",
+    "python-docx>=1.1.0",
+
+    # ── Rate Limiting ──
+    "aiolimiter>=1.1.0",
+
+    # ── Tracing (otel extras) ──
+    "opentelemetry-api>=1.25.0",
+    "opentelemetry-sdk>=1.25.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.25.0",
+    "opentelemetry-instrumentation-fastapi>=0.46b0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.24",
-    "pytest-timeout>=2.2",
-    "httpx>=0.27",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+    "ruff>=0.4.0",
 ]
 otel = [
-    "opentelemetry-api>=1.20.0",
-    "opentelemetry-sdk>=1.20.0",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
-    "opentelemetry-instrumentation-fastapi",
-    "opentelemetry-instrumentation-httpx",
+    "opentelemetry-api>=1.25.0",
+    "opentelemetry-sdk>=1.25.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.25.0",
+    "opentelemetry-instrumentation-fastapi>=0.46b0",
 ]
 ```
 

@@ -13,7 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 
 from app.api.v1.auth import get_access_context, get_current_user
 from app.core.config import settings
-from app.core.constants import ALLOWED_FILE_EXTENSIONS
+from app.core.settings_registry import SettingsRegistry
 from app.core.graphrag.document_ingestion import ingestion_service
 from app.core.graphrag.entity_extraction import entity_extraction_service
 from app.core.graphrag.graph_builder import graph_builder_service
@@ -163,7 +163,9 @@ async def ingest_file(request: Request, file: UploadFile = File(...),
     if access_context.role not in (Role.ADMIN, Role.ANALYST): raise HTTPException(403, "Недостаточно прав")
     file_ext = Path(file.filename).suffix.lower() if file.filename else ""
     title = title or file.filename or "Без названия"
-    if file_ext not in ALLOWED_FILE_EXTENSIONS and file_ext != ".zip":
+    registry = SettingsRegistry()
+    allowed_extensions = registry.get_allowed_file_extensions()
+    if file_ext not in allowed_extensions and file_ext != ".zip":
         raise HTTPException(400, f"Неподдерживаемый формат: {file_ext}")
     
     # Проверка на нулевой размер файла — не загружаем пустые файлы

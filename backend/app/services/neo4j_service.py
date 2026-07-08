@@ -1,5 +1,6 @@
 """Neo4j graph database service for GraphRAG platform."""
 
+import re
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Optional
 
@@ -49,7 +50,7 @@ class Neo4jService:
                 async with self.session() as s:
                     await s.run(q)
             except Exception as e:
-                logger.debug("schema_skip", error=str(e))
+                logger.warning("schema_skip", error=str(e))
 
     async def create_entity(self, entity_id: str, name: str, entity_type: str, properties: Optional[dict] = None, clearance_level: int = 0, department: str = "all") -> dict:
         props = properties or {}
@@ -59,7 +60,10 @@ class Neo4jService:
             return (await r.single())["entity"]
 
     async def create_relationship(self, source_id: str, target_id: str, rel_type: str, properties: Optional[dict] = None) -> dict:
-        props = properties or {}; safe = rel_type.upper().replace(" ","_").replace("-","_")
+        props = properties or {}
+        if not re.match(r'^[A-Z_]+$', rel_type.upper().replace(" ","_").replace("-","_")):
+            raise ValueError(f"Invalid relationship type: {rel_type}")
+        safe = rel_type.upper().replace(" ","_").replace("-","_")
         q = f"MATCH (s:Entity {{id:$source_id}}) MATCH (t:Entity {{id:$target_id}}) MERGE (s)-[r:{safe}]->(t) SET r+=$properties, r.updated_at=datetime() RETURN type(r) AS rel_type, r{{.*}} AS properties"
         async with self.session() as s:
             r = await s.run(q, source_id=source_id, target_id=target_id, properties=props)
@@ -93,28 +97,34 @@ class Neo4jService:
             r = await s.run(q, chunk_id=chunk_id, document_id=document_id, text=text, position=position)
             return (await r.single())["chunk"]
 
-    async def get_entity_neighborhood(self, entity_name: str, depth: int = 2, limit: int = 50, rbac_filter: str = "") -> dict:
+    async def get_entity_neighborhood(self, entity_name: str, depth: int = 2, limit: int = 50, rbac_filter: str = "", rbac_params: Optional[dict] = None) -> dict:
         start = time.time(); w = f"WHERE {rbac_filter}" if rbac_filter else ""
         q = f"MATCH (root:Entity {{name:$entity_name}}) CALL apoc.path.subgraphAll(root, {{maxLevel:$depth, limit:$limit}}) YIELD nodes, relationships UNWIND nodes AS n {w} WITH collect(DISTINCT n{{.*, labels:labels(n), id:n.id}}) AS filtered_nodes, relationships UNWIND relationships AS r RETURN filtered_nodes AS nodes, collect(DISTINCT {{source:startNode(r).id, target:endNode(r).id, type:type(r), properties:properties(r)}}) AS edges"
+        params = {"entity_name": entity_name, "depth": depth, "limit": limit}
+        if rbac_params: params.update(rbac_params)
         try:
             async with self.session() as s:
-                r = await s.run(q, entity_name=entity_name, depth=depth, limit=limit); rec = await r.single()
+                r = await s.run(q, **params); rec = await r.single()
                 graph_query_duration_seconds.observe(time.time()-start)
                 return {"nodes":rec["nodes"],"edges":rec["edges"]} if rec else {"nodes":[],"edges":[]}
-        except:
-            return await self._fallback(entity_name, depth, limit, rbac_filter)
+        except Exception as e:
+            logger.warning(f"get_entity_neighborhood fallback: {e}")
+            return await self._fallback(entity_name, depth, limit, rbac_filter, rbac_params)
 
-    async def _fallback(self, entity_name: str, depth: int, limit: int, rbac_filter: str) -> dict:
+    async def _fallback(self, entity_name: str, depth: int, limit: int, rbac_filter: str, rbac_params: Optional[dict] = None) -> dict:
         wc = f"AND {rbac_filter}" if rbac_filter else ""
         q = f"MATCH path=(root:Entity {{name:$entity_name}})-[*1..{depth}]-(n) WHERE n:Entity {wc} WITH DISTINCT n, relationships(path) AS rels LIMIT $limit UNWIND rels AS r RETURN collect(DISTINCT n{{.*, id:n.id, entity_type:n.entity_type}}) AS nodes, collect(DISTINCT {{source:startNode(r).id, target:endNode(r).id, type:type(r)}}) AS edges"
+        params = {"entity_name": entity_name, "limit": limit}
+        if rbac_params: params.update(rbac_params)
         async with self.session() as s:
-            r = await s.run(q, entity_name=entity_name, limit=limit); rec = await r.single()
+            r = await s.run(q, **params); rec = await r.single()
             return {"nodes":rec["nodes"],"edges":rec["edges"]} if rec else {"nodes":[],"edges":[]}
 
-    async def search_entities(self, query: str, entity_type: Optional[str] = None, limit: int = 20, rbac_filter: str = "") -> list[dict]:
+    async def search_entities(self, query: str, entity_type: Optional[str] = None, limit: int = 20, rbac_filter: str = "", rbac_params: Optional[dict] = None) -> list[dict]:
         tc = "AND e.entity_type=$entity_type" if entity_type else ""; rc = f"AND {rbac_filter}" if rbac_filter else ""
         p: dict = {"query":query,"limit":limit}
         if entity_type: p["entity_type"] = entity_type
+        if rbac_params: p.update(rbac_params)
         async with self.session() as s:
             r = await s.run(f"MATCH (e:Entity) WHERE toLower(e.name) CONTAINS toLower($query) {tc} {rc} RETURN e{{.*, id:e.id}} AS entity ORDER BY e.name LIMIT $limit", **p)
             return [rec["entity"] for rec in await r.data()]
@@ -126,13 +136,15 @@ class Neo4jService:
             if rec: graph_nodes_total.set(rec["node_count"]); graph_edges_total.set(rec["edge_count"]); return {"node_count":rec["node_count"],"edge_count":rec["edge_count"],"documents":rec["doc_count"],"entities":rec["entity_count"]}
             return {"node_count":0,"edge_count":0,"documents":0,"entities":0}
 
-    async def get_visualization_data(self, limit: int = 200, rbac_filter: str = "") -> dict:
+    async def get_visualization_data(self, limit: int = 200, rbac_filter: str = "", rbac_params: Optional[dict] = None) -> dict:
         wc = f"WHERE {rbac_filter}" if rbac_filter else ""
+        params = {"limit": limit}
+        if rbac_params: params.update(rbac_params)
         async with self.session() as s:
-            r = await s.run(f"MATCH (n:Entity) {wc} WITH n LIMIT $limit OPTIONAL MATCH (n)-[r]-(m:Entity) RETURN collect(DISTINCT {{id:n.id,name:n.name,type:n.entity_type,clearance:n.clearance_level}}) AS nodes, collect(DISTINCT {{source:startNode(r).id,target:endNode(r).id,type:type(r)}}) AS edges", limit=limit)
+            r = await s.run(f"MATCH (n:Entity) {wc} WITH n LIMIT $limit OPTIONAL MATCH (n)-[r]-(m:Entity) RETURN collect(DISTINCT {{id:n.id,name:n.name,type:n.entity_type,clearance:n.clearance_level}}) AS nodes, collect(DISTINCT {{source:startNode(r).id,target:endNode(r).id,type:type(r)}}) AS edges", **params)
             rec = await r.single(); return {"nodes":rec["nodes"],"edges":rec["edges"]} if rec else {"nodes":[],"edges":[]}
 
-    async def get_related_documents(self, entity_name: str, limit: int = 10, rbac_filter: str = "") -> list[dict]:
+    async def get_related_documents(self, entity_name: str, limit: int = 10, rbac_filter: str = "", rbac_params: Optional[dict] = None) -> list[dict]:
         """
         Находит документы, связанные с указанной сущностью через граф.
         Используется для обогащения контекста при поиске.
@@ -141,6 +153,7 @@ class Neo4jService:
             entity_name: Имя сущности.
             limit: Максимальное количество документов.
             rbac_filter: Cypher WHERE условие для RBAC-фильтрации.
+            rbac_params: Параметры для RBAC-фильтрации.
             
         Returns:
             Список документов с полями title и text.
@@ -153,13 +166,15 @@ class Neo4jService:
             ORDER BY d.title
             LIMIT $limit
         """
+        params = {"entity_name": entity_name, "limit": limit}
+        if rbac_params: params.update(rbac_params)
         try:
             async with self.session() as s:
-                r = await s.run(q, entity_name=entity_name, limit=limit)
-                return [{"title": rec["title"] or "Без названия", "doc_id": rec["doc_id"], "text": rec["text"]} 
+                r = await s.run(q, **params)
+                return [{"title": rec["title"] or "Без названия", "doc_id": rec["doc_id"], "text": rec["text"]}
                         for rec in await r.data()]
         except Exception as e:
-            logger.debug("get_related_documents_failed", entity=entity_name, error=str(e))
+            logger.warning("get_related_documents_failed", entity=entity_name, error=str(e))
             # Fallback: прямой поиск через Entity-отношения
             try:
                 fallback_q = f"""
@@ -169,8 +184,8 @@ class Neo4jService:
                     LIMIT $limit
                 """
                 async with self.session() as s:
-                    r = await s.run(fallback_q, entity_name=entity_name, limit=limit)
-                    return [{"title": rec["title"] or "Без названия", "doc_id": rec["doc_id"], "text": rec["text"] or ""} 
+                    r = await s.run(fallback_q, **params)
+                    return [{"title": rec["title"] or "Без названия", "doc_id": rec["doc_id"], "text": rec["text"] or ""}
                             for rec in await r.data()]
             except Exception:
                 return []

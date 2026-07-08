@@ -120,7 +120,7 @@ class OllamaService:
                 logger.exception("ollama_batch_embed_failed", batch_start=i, batch_size=len(batch_texts))
                 raise
 
-        logger.debug("ollama_embed_completed", model=model, count=len(texts), vectors_returned=len(all_embeddings))
+        logger.info("ollama_embed_completed", model=model, count=len(texts), vectors_returned=len(all_embeddings))
         return all_embeddings
 
     async def embed_single(self, text: str, model: Optional[str] = None) -> list[float]:

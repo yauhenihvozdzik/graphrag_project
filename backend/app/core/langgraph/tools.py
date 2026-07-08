@@ -10,8 +10,8 @@ from langchain_core.tools import tool
 async def vector_search(query: str, top_k: int = 5) -> str:
     """Search the vector knowledge base for relevant document chunks.
 
-    Use this tool when you need to find specific information from legal documents,
-    laws, or regulations in the knowledge base.
+    Use this tool when you need to find specific information from documents,
+    reports, or technical documentation in the knowledge base.
 
     Args:
         query: The search query in Russian.
@@ -52,8 +52,8 @@ async def vector_search(query: str, top_k: int = 5) -> str:
 async def graph_query(entity_name: str, depth: int = 2) -> str:
     """Query the knowledge graph for entity relationships and connections.
 
-    Use this tool when you need to explore relationships between legal entities,
-    laws, organizations, or concepts in the knowledge graph.
+    Use this tool when you need to explore relationships between entities,
+    organizations, or concepts in the knowledge graph.
 
     Args:
         entity_name: Name of the entity to explore (in Russian).
@@ -96,12 +96,11 @@ async def graph_query(entity_name: str, depth: int = 2) -> str:
 async def entity_search(query: str, entity_type: str = "") -> str:
     """Search for specific entities in the knowledge graph by name.
 
-    Use this tool to find specific laws, articles, organizations, courts,
-    or other legal entities by name.
+    Use this tool to find specific entities, organizations, or concepts by name.
 
     Args:
         query: Search query (entity name or part of it, in Russian).
-        entity_type: Optional filter by entity type (ЗАКОН, СТАТЬЯ, ОРГАНИЗАЦИЯ, СУД, ПОНЯТИЕ).
+        entity_type: Optional filter by entity type (ОРГАНИЗАЦИЯ, ДОКУМЕНТ, ПРОДУКТ, ПРОЕКТ, ПОНЯТИЕ).
 
     Returns:
         List of matching entities with their types.

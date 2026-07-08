@@ -120,7 +120,7 @@ class GraphRAGAgent:
         requires_graph, entities = classify_query(messages)
         state["requires_graph"] = requires_graph
         state["entities"] = entities
-        logger.debug("query_classified", requires_graph=requires_graph, entities=entities)
+        logger.info("query_classified", requires_graph=requires_graph, entities=entities)
         return state
 
     # ── Узел 2: Фильтрация off-topic ────────────────────────
@@ -236,8 +236,8 @@ class GraphRAGAgent:
         else:
             dynamic_top_k = settings.RERANKER_TOP_K  # fallback
         
-        logger.debug("dynamic_top_k_calculated", 
-                     total_nodes=total_nodes, 
+        logger.info("dynamic_top_k_calculated",
+                     total_nodes=total_nodes,
                      total_edges=total_connections,
                      dynamic_top_k=dynamic_top_k)
 
@@ -284,7 +284,7 @@ class GraphRAGAgent:
         # Всегда выполняем графовый поиск — он даёт богатый контекст
         try:
             from app.core.security.rbac import rbac_service
-            rbac_filter = rbac_service.build_cypher_filter(
+            rbac_filter, rbac_params = rbac_service.build_cypher_filter(
                 AccessContext(
                     user_id=access_ctx.get("user_id", "anonymous"),
                     role=Role(access_ctx.get("role", "viewer")),
@@ -300,10 +300,11 @@ class GraphRAGAgent:
             for entity_name in entities[:10]:  # обрабатываем до 10 сущностей
                 try:
                     graph_data = await neo4j_service.get_entity_neighborhood(
-                        entity_name=entity_name, 
-                        depth=graph_depth, 
-                        limit=graph_limit, 
+                        entity_name=entity_name,
+                        depth=graph_depth,
+                        limit=graph_limit,
                         rbac_filter=rbac_filter,
+                        rbac_params=rbac_params,
                     )
                     if graph_data.get("nodes"):
                         context_parts.append(format_graph_context(graph_data))
@@ -314,16 +315,17 @@ class GraphRAGAgent:
                             "edges_count": len(graph_data["edges"]),
                         })
                 except Exception as inner_e:
-                    logger.debug("graph_entity_search_failed", entity=entity_name, error=str(inner_e))
+                    logger.warning("graph_entity_search_failed", entity=entity_name, error=str(inner_e))
                     
             # Дополнительно: если граф богатый, делаем community-level поиск
             if total_connections > 10 and entities:
                 try:
                     for entity_name in entities[:3]:
                         related = await neo4j_service.get_related_documents(
-                            entity_name=entity_name, 
+                            entity_name=entity_name,
                             limit=dynamic_top_k,
                             rbac_filter=rbac_filter,
+                            rbac_params=rbac_params,
                         )
                         if related:
                             for doc in related[:10]:
@@ -331,7 +333,7 @@ class GraphRAGAgent:
                                     f"Связанный документ [{doc.get('title', '')}]: {doc.get('text', '')[:1000]}"
                                 )
                 except Exception as inner_e:
-                    logger.debug("related_docs_search_failed", error=str(inner_e))
+                    logger.warning("related_docs_search_failed", error=str(inner_e))
                     
         except Exception as e:
             logger.warning("graph_search_failed", error=str(e))
@@ -399,11 +401,12 @@ class GraphRAGAgent:
 
         # Генерируем ответ с динамической температурой из настроек администрирования
         settings_registry = SettingsRegistry()
+        max_tokens = settings_registry.get_max_tokens()
         response = await ollama_service.chat(
             messages=chat_messages,
             temperature=settings_registry.get_temperature_chat(),
             options={
-                "num_predict": max(settings.MAX_TOKENS, 4096),  # больше токенов для развёрнутых ответов
+                "num_predict": max(max_tokens, 4096),  # больше токенов для развёрнутых ответов
                 "stop": settings_registry.get_stop_tokens(),
             },
         )
@@ -562,11 +565,12 @@ class GraphRAGAgent:
 
         # Стримим генерацию с динамической температурой из настроек администрирования
         settings_registry = SettingsRegistry()
+        max_tokens = settings_registry.get_max_tokens()
         async for chunk in ollama_service.chat_stream(
             messages=chat_messages,
             temperature=settings_registry.get_temperature_chat(),
             options={
-                "num_predict": max(settings.MAX_TOKENS, 4096),
+                "num_predict": max(max_tokens, 4096),
                 "stop": settings_registry.get_stop_tokens(),
             },
         ):

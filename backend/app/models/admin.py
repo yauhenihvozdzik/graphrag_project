@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from typing import Optional
 
 from sqlalchemy import UniqueConstraint
-from sqlmodel import Field, Relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseModel
 
@@ -77,11 +77,16 @@ class AdminSettingsVersion(BaseModel, table=True):
     audits: list["AdminSettingsAudit"] = Relationship(back_populates="version")
 
 
-class AdminSettingsAudit(BaseModel, table=True):
+class AdminSettingsAudit(SQLModel, table=True):
     """Individual setting change record for audit trail.
 
     Captures the old and new values of a setting when updated, along with
     who made the change and why.
+
+    NOTE: Inherits from SQLModel directly (not BaseModel) because the
+    migration (002_admin_settings.py) does not include a ``created_at``
+    column in the ``admin_settings_audit`` table. The ``changed_at``
+    field serves the same purpose.
 
     Attributes:
         id: Primary key, auto-increment.

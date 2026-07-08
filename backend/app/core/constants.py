@@ -2,6 +2,17 @@
 Константы GraphRAG: стоп-слова, ключевые слова, форматы файлов, роли, уровни доступа.
 """
 
+import os
+from enum import Enum
+
+
+class Environment(str, Enum):
+    DEVELOPMENT = "development"
+    STAGING = "staging"
+    PRODUCTION = "production"
+    TEST = "test"
+
+
 # ── Стоп-слова для блокировки нежелательных языков ──
 STOP_TOKENS = [
     "中文",         # Китайские иероглифы

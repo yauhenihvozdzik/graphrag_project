@@ -1,4 +1,15 @@
+<!-- AUDIT: updated 2026-07-08 -->
+
 # Архитектура раздела "Администрирование" для GraphRAG
+
+> **Результаты аудита (2026-07-08):**
+> - ✅ Admin API полностью реализована — 7 эндпоинтов в [`backend/app/api/v1/admin.py`](../backend/app/api/v1/admin.py)
+> - ✅ SettingsRegistry singleton реализован в [`backend/app/core/settings_registry.py`](../backend/app/core/settings_registry.py)
+> - ✅ Миграция `002_admin_settings.py` применена, таблицы созданы
+> - ✅ Seed-данные загружаются через [`backend/app/seed_admin_settings.py`](../backend/app/seed_admin_settings.py)
+> - ⚠️ Найден мёртвый код в `admin.py:237` (`get_user_by_id(audit.setting_id)` вместо AdminSetting) — исправлен в патчах
+> - ⚠️ Frontend админка полностью реализована в [`frontend/js/app.js`](../frontend/js/app.js) (строки ~1766-2000)
+> - ℹ️ Рекомендуется добавить тесты для admin API
 
 ## Содержание
 

@@ -92,7 +92,7 @@ class RBACService:
         """Check if a user has access to a specific graph node."""
         # Admin bypass
         if context.role == Role.ADMIN:
-            logger.debug("rbac_admin_bypass", user_id=context.user_id, node_id=policy.node_id)
+            logger.info("rbac_admin_bypass", user_id=context.user_id, node_id=policy.node_id)
             return True
 
         # Clearance level check
@@ -123,7 +123,6 @@ class RBACService:
             )
             return False
 
-        logger.debug("rbac_access_granted", user_id=context.user_id, node_id=policy.node_id)
         return True
 
     def filter_nodes(
@@ -143,25 +142,32 @@ class RBACService:
         )
         return accessible
 
-    def build_cypher_filter(self, context: AccessContext) -> str:
-        """Generate a Cypher WHERE clause for Neo4j queries with RBAC filtering."""
+    def build_cypher_filter(self, context: AccessContext) -> tuple[str, dict]:
+        """Generate a Cypher WHERE clause for Neo4j queries with RBAC filtering.
+        
+        Returns:
+            Tuple of (where_clause_string, params_dict).
+        """
         if context.role == Role.ADMIN:
-            return ""
+            return "", {}
 
         conditions = []
+        params = {}
 
         # Clearance filter
         conditions.append(
-            f"(n.clearance_level IS NULL OR n.clearance_level <= {context.clearance.value})"
+            "(n.clearance_level IS NULL OR n.clearance_level <= $clearance)"
         )
+        params["clearance"] = context.clearance.value
 
         # Department filter
         if context.department != "all":
             conditions.append(
-                f"(n.department IS NULL OR n.department = 'all' OR n.department = '{context.department}')"
+                "(n.department IS NULL OR n.department = 'all' OR n.department = $department)"
             )
+            params["department"] = context.department
 
-        return " AND ".join(conditions)
+        return " AND ".join(conditions), params
 
 
 # Singleton

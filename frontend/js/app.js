@@ -7,6 +7,12 @@
  * @module app
  */
 
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // ─── Utility Shortcuts ───────────────────────
     const $ = (s) => document.querySelector(s);
@@ -44,6 +50,10 @@ document.addEventListener('DOMContentLoaded', () => {
         'off_topic': '🚫 Off-topic',
         'stop_tokens': '⛔ Стоп-токены',
         'rag_parameters': '📊 RAG параметры',
+        'ingestion': '📥 Загрузка документов',
+        'llm': '🧠 Языковые модели',
+        'auth': '🔐 Аутентификация',
+        'logging': '📋 Логирование',
         'other': '⚙️ Другое',
         'history': '📜 История',
     };
@@ -130,11 +140,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const isSticky = opts.sticky === true;
 
-        el.innerHTML =
-            `<span class="toast-msg">${m}</span>` +
-            `<button class="toast-close" style="background:none;border:none;` +
-            `color:var(--text-muted);cursor:pointer;font-size:1.1rem;` +
-            `line-height:1;padding:0;flex-shrink:0;">×</button>`;
+        const msgSpan = document.createElement('span');
+        msgSpan.className = 'toast-msg';
+        msgSpan.textContent = m;
+        el.appendChild(msgSpan);
+
+        const closeButton = document.createElement('button');
+        closeButton.className = 'toast-close';
+        closeButton.textContent = '×';
+        closeButton.style.cssText =
+            'background:none;border:none;' +
+            'color:var(--text-muted);cursor:pointer;font-size:1.1rem;' +
+            'line-height:1;padding:0;flex-shrink:0;';
+        el.appendChild(closeButton);
 
         const closeBtn = el.querySelector('.toast-close');
 
@@ -190,6 +208,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }, dur);
         }
     }
+
+    // ─── Global 401 Unauthorized Handler ────────
+    window.addEventListener('auth:unauthorized', () => {
+        localStorage.removeItem('graphrag_token');
+        localStorage.removeItem('graphrag_user');
+        api.clearToken();
+        window.location.hash = '#login';
+        authSc.classList.remove('hidden');
+        appSc.classList.add('hidden');
+        toast('⏰ Сессия истекла. Пожалуйста, войдите снова.', 'warning');
+    });
 
     // ─── Ingest Status Polling ──────────────────
     // STEP_LABELS maps step_name to a user-friendly system label
@@ -524,25 +553,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tbody.innerHTML = deptList
                 .map((d) => {
+                    const safeName = escapeHtml(d.name);
+                    const safeCode = escapeHtml(d.code);
+                    const safeDesc = escapeHtml(d.description || '');
                     return `<tr>
-                        <td style="padding:0.5rem;">${d.id}</td>
-                        <td style="padding:0.5rem;"><code>${d.code}</code></td>
+                        <td style="padding:0.5rem;">${escapeHtml(String(d.id))}</td>
+                        <td style="padding:0.5rem;"><code>${safeCode}</code></td>
                         <td style="padding:0.5rem;">
-                            <input type="text" value="${d.name}" data-dn="${d.id}"
+                            <input type="text" value="${safeName}" data-dn="${d.id}"
                                 style="background-color:var(--bg-input);border:1px solid var(--border);
                                 color:var(--text);padding:0.3rem 0.5rem;border-radius:var(--radius);
                                 font-size:0.85rem;width:140px;">
                         </td>
                         <td style="padding:0.5rem;">
-                            <input type="text" value="${d.description || ''}" data-dd="${d.id}"
+                            <input type="text" value="${safeDesc}" data-dd="${d.id}"
                                 style="background-color:var(--bg-input);border:1px solid var(--border);
                                 color:var(--text);padding:0.3rem 0.5rem;border-radius:var(--radius);
                                 font-size:0.85rem;width:200px;">
                         </td>
                         <td style="padding:0.5rem;text-align:center;white-space:nowrap;">
-                            <button data-dsave="${d.id}" data-dcode="${d.code}"
+                            <button data-dsave="${d.id}" data-dcode="${safeCode}"
                                 class="btn btn-sm" style="color:var(--success);">💾</button>
-                            <button data-ddel="${d.id}" data-dcode="${d.code}"
+                            <button data-ddel="${d.id}" data-dcode="${safeCode}"
                                 class="btn btn-sm" style="color:var(--error);">🗑️</button>
                         </td>
                     </tr>`;
@@ -623,7 +655,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderMd(text) {
         if (typeof marked !== 'undefined') {
             marked.setOptions({ breaks: true });
-            return marked.parse(text);
+            const html = marked.parse(text);
+            if (typeof DOMPurify !== 'undefined') {
+                return DOMPurify.sanitize(html);
+            }
+            return html;
         }
         // Fallback: basic HTML escaping + line breaks
         return text
@@ -1293,7 +1329,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <span data-dl="${doc.id}"
                                     style="color:var(--primary);text-decoration:underline;
                                     cursor:pointer;" title="Скачать документ">
-                                    ${doc.title || doc.id}
+                                    ${escapeHtml(doc.title || doc.id)}
                                 </span>
                             </td>
                             <td style="padding:0.5rem;text-align:center;">
@@ -1315,7 +1351,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </select>
                             </td>
                             <td style="padding:0.5rem;text-align:center;">
-                                ${doc.chunks ?? '—'}
+                                ${escapeHtml(String(doc.chunks ?? '—'))}
                             </td>
                             <td style="padding:0.5rem;text-align:center;
                                 font-size:0.8rem;color:var(--text-muted);">

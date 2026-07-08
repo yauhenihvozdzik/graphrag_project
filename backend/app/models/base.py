@@ -2,7 +2,11 @@
 
 from datetime import UTC, datetime
 
+from sqlalchemy.orm import declarative_base
 from sqlmodel import Field, SQLModel
+
+# SQLAlchemy declarative base for raw SQLAlchemy models (audit_logs, rbac_policies, etc.)
+Base = declarative_base()
 
 
 class BaseModel(SQLModel):

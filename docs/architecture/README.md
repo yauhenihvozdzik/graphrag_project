@@ -1,6 +1,23 @@
+<!-- AUDIT: updated 2026-07-08 -->
+
 # Документация архитектуры GraphRAG Platform
 
 Архитектурные артефакты проекта для защиты дипломной работы.
+
+> **Фактическая архитектура: гибридная Layered + Pipeline + State Machine**
+> - **Layered**: Frontend (Vanilla JS) → API (FastAPI) → Agent (LangGraph) → Services (Neo4j, Qdrant, Ollama, PostgreSQL, MinIO) → Infrastructure (Prometheus, Grafana, Jaeger)
+> - **Pipeline (GraphRAG)**: ingestion → extraction → graph → vectors
+> - **State Machine (LangGraph)**: classify → off_topic → spelling → retrieve → generate → guardrails
+>
+> **DatabaseService** (`backend/app/services/database.py`) — **God Object**: отвечает за users, departments, sessions, messages, admin_settings, file_metadata. Требует рефакторинга на предметные сервисы (Single Responsibility Principle).
+
+## Аудит архитектуры
+
+По результатам аудита (июль 2026):
+- [Архитектурный аудит](../../plans/architecture-audit-report.md) — полный реестр расхождений «ожидание vs реальность»
+- [Патчи и исправления](../../plans/patches.md) — план устранения критических и высокоприоритетных проблем
+
+> **Статус:** архитектура соответствует заявленному C4-подходу, но документация содержит устаревшие/нереализованные компоненты. Основной паттерн — **Layered Architecture с State Machine оркестрацией**.
 
 ## Содержание
 

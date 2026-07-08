@@ -12,8 +12,10 @@ All endpoints require the ``admin`` role.
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 
 from app.api.v1.auth import get_access_context, get_current_user
+from app.core.config import settings
 from app.core.logging import logger
 from app.core.security.guardrails import guardrails_service
 from app.core.security.rbac import RBACService, Role
@@ -27,6 +29,7 @@ from app.models.schemas import (
     AdminSettingsUpdateRequest,
 )
 from app.services.database import database_service
+from app.models.admin import AdminSetting, AdminSettingsAudit
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -66,7 +69,6 @@ async def get_all_settings(
     categories: dict[str, list[dict]] = {}
     if registry._settings:
         for cat, kv in registry._settings.items():
-            # Build AdminSettingResponse-like dicts from cache
             rows = database_service.get_admin_settings_by_category(cat)
             categories[cat] = [_setting_to_response(r) for r in rows]
     else:
@@ -76,7 +78,6 @@ async def get_all_settings(
 
     logger.info("admin_get_all_settings", categories=list(categories.keys()))
     return AdminSettingsAll(categories=categories)
-
 
 
 @router.put("/settings/{setting_id}", response_model=AdminSettingResponse)
@@ -183,6 +184,8 @@ async def debug_registry(
     access_context: Any = Depends(get_access_context),
 ):
     """DEBUG: Show raw registry state."""
+    if not settings.DEBUG:
+        raise HTTPException(404, "Not found")
     RBACService.require_role(access_context, Role.ADMIN)
     registry = SettingsRegistry()
     return {
@@ -225,20 +228,14 @@ async def get_settings_history(
     """Return paginated audit history of setting changes."""
     RBACService.require_role(access_context, Role.ADMIN)
 
-    from app.models.admin import AdminSetting, AdminSettingsAudit
-
     audit_records = database_service.get_admin_settings_history(
         limit=limit, offset=offset,
     )
 
     result: list[dict] = []
     for audit in audit_records:
-        # Resolve the setting key and category
-        setting = database_service.get_user_by_id(audit.setting_id)
-        # Actually we need AdminSetting, not User; use a direct query
-        from sqlmodel import Session, select
-
-        with Session(database_service.engine) as s:
+        # Resolve the setting key and category using sync engine
+        with database_service._get_sync_session() as s:
             setting_row = s.get(AdminSetting, audit.setting_id)
 
         # Resolve the user who made the change

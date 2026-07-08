@@ -17,11 +17,22 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 mock_neo4j = MagicMock()
 sys.modules["neo4j"] = mock_neo4j
 
+# Mock neo4j.exceptions submodule
+mock_neo4j_exceptions = MagicMock()
+mock_neo4j_exceptions.ServiceUnavailable = type("ServiceUnavailable", (Exception,), {})
+mock_neo4j_exceptions.AuthError = type("AuthError", (Exception,), {})
+sys.modules["neo4j.exceptions"] = mock_neo4j_exceptions
+
 # Mock qdrant_client
 mock_qdrant = MagicMock()
 sys.modules["qdrant_client"] = mock_qdrant
-sys.modules["qdrant_client.http"] = MagicMock()
+mock_qdrant_http = MagicMock()
+sys.modules["qdrant_client.http"] = mock_qdrant_http
+mock_qdrant_http.models = MagicMock()
 sys.modules["qdrant_client.http.models"] = MagicMock()
+mock_qdrant_http_exceptions = MagicMock()
+mock_qdrant_http_exceptions.UnexpectedResponse = type("UnexpectedResponse", (Exception,), {})
+sys.modules["qdrant_client.http.exceptions"] = mock_qdrant_http_exceptions
 sys.modules["qdrant_client.models"] = MagicMock()
 
 # Mock optional modules
@@ -36,7 +47,6 @@ for mod in [
     "pymupdf", "fitz", "docx",
     "structlog",
     "prometheus_client",
-    "sqlmodel",
     "httpx",
 ]:
     if mod not in sys.modules:

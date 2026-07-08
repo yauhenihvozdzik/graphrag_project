@@ -1,3 +1,5 @@
+<!-- AUDIT: updated 2026-07-08 -->
+
 # GraphRAG Platform
 
 **Корпоративная платформа анализа знаний на основе Graph RAG**
@@ -48,11 +50,11 @@
 
 | Компонент | Технология | Назначение |
 |-----------|-----------|------------|
-| LLM | Ollama + T-lite-it-1.0 (7B) / Qwen 2.5 (7B) | Генерация ответов на русском языке |
+| LLM | Ollama + qwen2.5:7b (основная) / T-lite-it-1.0 (7B) (опционально) | Генерация ответов на русском языке |
 | Embeddings | bge-m3 (1024-dim) | Векторные представления документов |
 | Vector DB | Qdrant | Семантический поиск с фильтрацией по RBAC |
 | Graph DB | Neo4j 5.26 Community | Граф знаний, связи сущностей |
-| Backend | FastAPI + LangGraph | API, оркестрация RAG pipeline |
+| Backend | FastAPI + LangGraph + Uvicorn | API, оркестрация RAG pipeline |
 | Auth | JWT + PostgreSQL 16 | Аутентификация, сессии, пользователи |
 | Frontend | HTML/CSS/JS + Nginx:alpine | Веб-интерфейс (SPA, тёмная тема) |
 | Storage | MinIO (S3-совместимое) | Хранение документов и файлов |
@@ -85,7 +87,7 @@ chmod +x scripts/init.sh
 ./scripts/init.sh
 ```
 
-Примечание: `scripts/init.sh` запускает инфраструктуру, ожидает готовности сервисов, загружает модели Ollama (`t-lite:7b-q4_K_M`, `bge-m3`), создаёт индексы Neo4j, seed-пользователей и запускает backend+frontend.
+Примечание: `scripts/init.sh` запускает инфраструктуру, ожидает готовности сервисов, загружает модели Ollama (`qwen2.5:7b`, `bge-m3`), создаёт индексы Neo4j, seed-пользователей и запускает backend+frontend.
 
 ### Доступ к сервисам
 
@@ -143,17 +145,25 @@ chmod +x scripts/init.sh
 - `DELETE /api/v1/graph/document/{doc_id}` — Удаление документа (Neo4j + Qdrant + S3 + file_metadata)
 - `DELETE /api/v1/graph/clear` — Полная очистка графа, векторов и S3
 
+### Администрирование (настройки)
+- `GET /api/v1/admin/settings` — Все настройки по категориям
+- `PUT /api/v1/admin/settings/{setting_id}` — Обновление настройки
+- `PUT /api/v1/admin/settings/category/{category}` — Обновление категории настроек
+- `GET /api/v1/admin/settings/{category}` — Настройки конкретной категории
+- `POST /api/v1/admin/settings/reload` — Перезагрузка кэша настроек SettingsRegistry
+- `GET /api/v1/admin/settings/history` — История изменений настроек (пагинация)
+
 ### Отделы
 - `GET /api/v1/departments/` — Список отделов
 - `POST /api/v1/departments/` — Создание отдела (admin)
 - `PUT /api/v1/departments/{dep_id}` — Изменение отдела (admin)
 - `DELETE /api/v1/departments/{dep_id}` — Удаление отдела (admin)
 
-### Администрирование
+### Управление пользователями (администрирование)
 - `GET /api/v1/auth/users` — Список пользователей (пагинация, фильтры, поиск)
 - `PUT /api/v1/auth/users/{id}` — Изменение пользователя (роль, отдел, активация)
 - `DELETE /api/v1/auth/users/{id}` — Удаление пользователя
-- `POST /api/v1/auth/users/{id}/impersonate` — Войти под пользователем
+- `POST /api/v1/auth/users/{id}/impersonate` — Имперсонация (вход под пользователем)
 
 ### Тестирование
 - `POST /api/v1/tests/run` — Запуск pytest через SSE (admin only)
@@ -165,8 +175,11 @@ chmod +x scripts/init.sh
 
 ## Безопасность
 
+### Auditor role
+- Роль `auditor` существует в коде (`backend/app/core/security/rbac.py`) — имеет доступ на чтение всех данных без права изменений.
+
 ### RBAC (Контроль доступа)
-- **Роли**: admin, analyst, viewer
+- **Роли**: admin, analyst, viewer, auditor
 - **Отделы**: all, legal, research, management, compliance, hr, finance, it
 - **Уровни доступа**: 0 (public/открытый), 1 (internal/внутренний), 2 (confidential/конфиденциальный), 3 (secret/секретный)
 - Фильтрация на уровне узлов графа (Cypher WHERE) и векторного поиска (Qdrant payload filter)

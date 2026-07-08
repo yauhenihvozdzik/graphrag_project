@@ -1,3 +1,4 @@
+<!-- AUDIT: updated 2026-07-08 -->
 %%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#d4a017'}}}%%
 
 flowchart TB
@@ -22,8 +23,8 @@ flowchart TB
     subgraph AUTH["🔑 Authentication Layer"]
         direction TB
         LOGIN["Login Endpoint<br/>POST /auth/login"]
-        JWT_ISSUE["JWT Token Issuance<br/>• Claims: user_id, role, department<br/>• Expiry: 1h (access) / 7d (refresh)<br/>• Algorithm: RS256"]
-        VAULT_KEYS["🔐 Vault<br/>JWT signing keys<br/>DB credentials<br/>API secrets"]
+        JWT_ISSUE["JWT Token Issuance<br/>• Claims: user_id, role, department<br/>• Expiry: 30 days (access only, no refresh)<br/>• Algorithm: HS256 (текущий) / RS256 (planned — требуется миграция)"]
+        VAULT_KEYS["🔐 Vault (planned)<br/>JWT signing keys<br/>DB credentials<br/>API secrets<br/>⏳ Текущий: .env файл"]
 
         LOGIN --> JWT_ISSUE
         JWT_ISSUE --> VAULT_KEYS
@@ -35,10 +36,10 @@ flowchart TB
 
     subgraph GW_SEC["🔷 API Gateway Security"]
         direction TB
-        TLS["🔒 TLS 1.3 Termination<br/>Self-signed cert (on-premise)"]
-        RATE["⏱️ Rate Limiting<br/>• Руководитель: 100 rpm<br/>• Аналитик: 60 rpm<br/>• Гость: 10 rpm"]
+        TLS["🔒 TLS 1.3 Termination<br/>Self-signed cert (on-premise)<br/>⏳ Dev only — не включён"]
+        RATE["⏱️ Rate Limiting (planned)<br/>• Руководитель: 100 rpm<br/>• Аналитик: 60 rpm<br/>• Гость: 10 rpm<br/>⏳ Конфиг есть, middleware отсутствует"]
         JWT_VAL["🎫 JWT Validation<br/>• Signature verification<br/>• Expiry check<br/>• Role extraction"]
-        IP_FILTER["🌐 IP Allowlist<br/>Только корпоративная сеть"]
+        IP_FILTER["🌐 IP Allowlist (planned)<br/>Только корпоративная сеть<br/>⏳ Не реализован"]
 
         TLS --> RATE --> JWT_VAL --> IP_FILTER
     end
@@ -50,7 +51,7 @@ flowchart TB
     subgraph INPUT_GR["🛡️ Input Guardrails"]
         direction TB
         PII_DET["🔍 PII Detection<br/>• Regex: ИНН, СНИЛС, паспорт, телефон<br/>• NER: имена, адреса<br/>• Action: BLOCK + LOG"]
-        INJ_DET["⚠️ Prompt Injection Detection<br/>• Pattern matching (jailbreak DB)<br/>• Semantic similarity check<br/>• Role override detection<br/>• Action: BLOCK + ALERT"]
+        INJ_DET["⚠️ Prompt Injection Detection<br/>• Pattern matching (16 паттернов)<br/>• Semantic similarity check<br/>• Role override detection<br/>• Action: BLOCK + ALERT"]
         LEN_VAL["📏 Input Validation<br/>• Max query length: 2000 chars<br/>• Max tokens: configurable per role<br/>• Encoding: UTF-8 only"]
         SANITIZE["🧹 Input Sanitization<br/>• HTML/script stripping<br/>• Unicode normalization<br/>• SQL injection prevention"]
 
@@ -87,9 +88,9 @@ flowchart TB
     subgraph OUTPUT_GR["🛡️ Output Guardrails"]
         direction TB
         LEAK_CHK["🔍 Data Leak Prevention<br/>• Проверка на confidential маркеры<br/>• Фильтрация внутренних ID/имён<br/>• Маскирование секретных данных"]
-        HALLUC["🧪 Hallucination Check<br/>• Cross-reference с source docs<br/>• Factual consistency scoring<br/>• Low confidence → disclaimer"]
+        HALLUC["🧪 Hallucination Check (planned)<br/>• Cross-reference с source docs<br/>• Factual consistency scoring<br/>• Low confidence → disclaimer<br/>⏳ Не реализован"]
         CITE["📎 Citation Injection<br/>• Привязка к исходным документам<br/>• [Источник: название, §раздел]<br/>• Ссылки с учётом RBAC"]
-        AUDIT_LOG["📝 Audit Logging<br/>• user_id, query_hash<br/>• response_time, trace_id<br/>• security events → SIEM"]
+        AUDIT_LOG["📝 Audit Logging (planned)<br/>• user_id, query_hash<br/>• response_time, trace_id<br/>• security events → SIEM<br/>⏳ Не реализован — нет таблицы audit_logs"]
 
         LEAK_CHK --> HALLUC --> CITE --> AUDIT_LOG
     end

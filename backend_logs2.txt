@@ -1,0 +1,80 @@
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 2.594s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 2.885s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT chat_session.created_at, chat_session.id, chat_session.user_id, chat_session.name, chat_session.username 
+graphrag-backend  | FROM chat_session 
+graphrag-backend  | WHERE chat_session.user_id = $1::INTEGER ORDER BY chat_session.created_at DESC
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [generated in 0.00011s] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 3.195s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 3.505s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 3.817s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 4.126s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 5.508s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 5.935s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".email = $1::VARCHAR
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 5.106s ago] ('analyst@graphrag.local',)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 6.737s ago] (2,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 7.002s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".email = $1::VARCHAR
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 5.904s ago] ('viewer@graphrag.local',)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 7.609s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK

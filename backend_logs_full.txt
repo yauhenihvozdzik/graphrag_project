@@ -1,0 +1,200 @@
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 12.54s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO:     Received SIGTERM, exiting.
+graphrag-backend  | INFO:     Terminated child process [8]
+graphrag-backend  | INFO:     Terminated child process [9]
+graphrag-backend  | INFO:     Waiting for child process [8]
+graphrag-backend  | INFO:     Waiting for child process [9]
+graphrag-backend  | INFO:     Stopping parent process [1]
+graphrag-backend  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+graphrag-backend  | INFO:     Started parent process [1]
+graphrag-backend  | [2m2026-07-08T10:36:13.252845Z[0m [[32m[1minfo     [0m] [1mdatabase_initialized          [0m [[0m[1m[34mgraphrag[0m][0m [36menvironment[0m=[35mdevelopment[0m [36mpool_size[0m=[35m20[0m
+graphrag-backend  | [2m2026-07-08T10:36:13.254619Z[0m [[32m[1minfo     [0m] [1mdatabase_initialized          [0m [[0m[1m[34mgraphrag[0m][0m [36menvironment[0m=[35mdevelopment[0m [36mpool_size[0m=[35m20[0m
+graphrag-backend  | [2m2026-07-08T10:36:14.592622Z[0m [[32m[1minfo     [0m] [1mfastapi_instrumented_with_otel[0m [[0m[1m[34mgraphrag[0m][0m
+graphrag-backend  | INFO:     Started server process [9]
+graphrag-backend  | INFO:     Waiting for application startup.
+graphrag-backend  | [2m2026-07-08T10:36:14.593587Z[0m [[32m[1minfo     [0m] [1mapplication_startup           [0m [[0m[1m[34mgraphrag[0m][0m [36menvironment[0m=[35mdevelopment[0m [36mproject_name[0m=[35m'GraphRAG Platform'[0m [36mversion[0m=[35m1.0.0[0m
+graphrag-backend  | [2m2026-07-08T10:36:14.620324Z[0m [[32m[1minfo     [0m] [1mopentelemetry_initialized     [0m [[0m[1m[34mgraphrag[0m][0m [36mexporter_endpoint[0m=[35mhttp://jaeger:4317[0m [36mservice_name[0m=[35mgraphrag-backend[0m
+graphrag-backend  | [2m2026-07-08T10:36:14.623799Z[0m [[32m[1minfo     [0m] [1mneo4j_connected               [0m [[0m[1m[34mgraphrag[0m][0m
+graphrag-backend  | [2m2026-07-08T10:36:14.624419Z[0m [[32m[1minfo     [0m] [1mfastapi_instrumented_with_otel[0m [[0m[1m[34mgraphrag[0m][0m
+graphrag-backend  | INFO:     Started server process [8]
+graphrag-backend  | INFO:     Waiting for application startup.
+graphrag-backend  | [2m2026-07-08T10:36:14.625424Z[0m [[32m[1minfo     [0m] [1mapplication_startup           [0m [[0m[1m[34mgraphrag[0m][0m [36menvironment[0m=[35mdevelopment[0m [36mproject_name[0m=[35m'GraphRAG Platform'[0m [36mversion[0m=[35m1.0.0[0m
+graphrag-backend  | [1mReceived notification from DBMS server: <GqlStatusObject gql_status='00NA0', status_description="note: successful completion - index or constraint already exists. The command 'CREATE CONSTRAINT entity_id IF NOT EXISTS FOR (e:Entity) REQUIRE (e.id) IS UNIQUE' has no effect. The index or constraint specified by 'CONSTRAINT entity_id FOR (e:Entity) REQUIRE (e.id) IS UNIQUE' already exists.", position=None, raw_classification='SCHEMA', classification=<NotificationClassification.SCHEMA: 'SCHEMA'>, raw_severity='INFORMATION', severity=<NotificationSeverity.INFORMATION: 'INFORMATION'>, diagnostic_record={'_classification': 'SCHEMA', '_severity': 'INFORMATION', 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CREATE CONSTRAINT entity_id IF NOT EXISTS FOR (e:Entity) REQUIRE e.id IS UNIQUE'[0m
+graphrag-backend  | [1mReceived notification from DBMS server: <GqlStatusObject gql_status='00NA0', status_description="note: successful completion - index or constraint already exists. The command 'CREATE CONSTRAINT document_id IF NOT EXISTS FOR (e:Document) REQUIRE (e.id) IS UNIQUE' has no effect. The index or constraint specified by 'CONSTRAINT document_id FOR (e:Document) REQUIRE (e.id) IS UNIQUE' already exists.", position=None, raw_classification='SCHEMA', classification=<NotificationClassification.SCHEMA: 'SCHEMA'>, raw_severity='INFORMATION', severity=<NotificationSeverity.INFORMATION: 'INFORMATION'>, diagnostic_record={'_classification': 'SCHEMA', '_severity': 'INFORMATION', 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CREATE CONSTRAINT document_id IF NOT EXISTS FOR (d:Document) REQUIRE d.id IS UNIQUE'[0m
+graphrag-backend  | [1mReceived notification from DBMS server: <GqlStatusObject gql_status='00NA0', status_description="note: successful completion - index or constraint already exists. The command 'CREATE CONSTRAINT chunk_id IF NOT EXISTS FOR (e:Chunk) REQUIRE (e.id) IS UNIQUE' has no effect. The index or constraint specified by 'CONSTRAINT chunk_id FOR (e:Chunk) REQUIRE (e.id) IS UNIQUE' already exists.", position=None, raw_classification='SCHEMA', classification=<NotificationClassification.SCHEMA: 'SCHEMA'>, raw_severity='INFORMATION', severity=<NotificationSeverity.INFORMATION: 'INFORMATION'>, diagnostic_record={'_classification': 'SCHEMA', '_severity': 'INFORMATION', 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CREATE CONSTRAINT chunk_id IF NOT EXISTS FOR (c:Chunk) REQUIRE c.id IS UNIQUE'[0m
+graphrag-backend  | [2m2026-07-08T10:36:14.653522Z[0m [[32m[1minfo     [0m] [1mopentelemetry_initialized     [0m [[0m[1m[34mgraphrag[0m][0m [36mexporter_endpoint[0m=[35mhttp://jaeger:4317[0m [36mservice_name[0m=[35mgraphrag-backend[0m
+graphrag-backend  | [2m2026-07-08T10:36:14.657009Z[0m [[32m[1minfo     [0m] [1mneo4j_connected               [0m [[0m[1m[34mgraphrag[0m][0m
+graphrag-backend  | [1mReceived notification from DBMS server: <GqlStatusObject gql_status='00NA0', status_description="note: successful completion - index or constraint already exists. The command 'CREATE CONSTRAINT entity_id IF NOT EXISTS FOR (e:Entity) REQUIRE (e.id) IS UNIQUE' has no effect. The index or constraint specified by 'CONSTRAINT entity_id FOR (e:Entity) REQUIRE (e.id) IS UNIQUE' already exists.", position=None, raw_classification='SCHEMA', classification=<NotificationClassification.SCHEMA: 'SCHEMA'>, raw_severity='INFORMATION', severity=<NotificationSeverity.INFORMATION: 'INFORMATION'>, diagnostic_record={'_classification': 'SCHEMA', '_severity': 'INFORMATION', 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CREATE CONSTRAINT entity_id IF NOT EXISTS FOR (e:Entity) REQUIRE e.id IS UNIQUE'[0m
+graphrag-backend  | [1mReceived notification from DBMS server: <GqlStatusObject gql_status='00NA0', status_description="note: successful completion - index or constraint already exists. The command 'CREATE CONSTRAINT document_id IF NOT EXISTS FOR (e:Document) REQUIRE (e.id) IS UNIQUE' has no effect. The index or constraint specified by 'CONSTRAINT document_id FOR (e:Document) REQUIRE (e.id) IS UNIQUE' already exists.", position=None, raw_classification='SCHEMA', classification=<NotificationClassification.SCHEMA: 'SCHEMA'>, raw_severity='INFORMATION', severity=<NotificationSeverity.INFORMATION: 'INFORMATION'>, diagnostic_record={'_classification': 'SCHEMA', '_severity': 'INFORMATION', 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CREATE CONSTRAINT document_id IF NOT EXISTS FOR (d:Document) REQUIRE d.id IS UNIQUE'[0m
+graphrag-backend  | [1mReceived notification from DBMS server: <GqlStatusObject gql_status='00NA0', status_description="note: successful completion - index or constraint already exists. The command 'CREATE CONSTRAINT chunk_id IF NOT EXISTS FOR (e:Chunk) REQUIRE (e.id) IS UNIQUE' has no effect. The index or constraint specified by 'CONSTRAINT chunk_id FOR (e:Chunk) REQUIRE (e.id) IS UNIQUE' already exists.", position=None, raw_classification='SCHEMA', classification=<NotificationClassification.SCHEMA: 'SCHEMA'>, raw_severity='INFORMATION', severity=<NotificationSeverity.INFORMATION: 'INFORMATION'>, diagnostic_record={'_classification': 'SCHEMA', '_severity': 'INFORMATION', 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CREATE CONSTRAINT chunk_id IF NOT EXISTS FOR (c:Chunk) REQUIRE c.id IS UNIQUE'[0m
+graphrag-backend  | [1mHTTP Request: GET http://qdrant:6333/collections/graphrag_documents "HTTP/1.1 200 OK"[0m
+graphrag-backend  | [1mHTTP Request: GET http://qdrant:6333 "HTTP/1.1 200 OK"[0m
+graphrag-backend  | [2m2026-07-08T10:36:14.669634Z[0m [[32m[1minfo     [0m] [1mqdrant_collection_exists      [0m [[0m[1m[34mgraphrag[0m][0m [36mcollection[0m=[35mgraphrag_documents[0m
+graphrag-backend  | [2m2026-07-08T10:36:14.670034Z[0m [[32m[1minfo     [0m] [1mqdrant_connected              [0m [[0m[1m[34mgraphrag[0m][0m [36mcollection[0m=[35mgraphrag_documents[0m [36mhost[0m=[35mqdrant[0m [36mport[0m=[35m6333[0m
+graphrag-backend  | [1mHTTP Request: GET http://ollama:11434/api/tags "HTTP/1.1 200 OK"[0m
+graphrag-backend  | [2m2026-07-08T10:36:14.676300Z[0m [[32m[1minfo     [0m] [1mollama_connected              [0m [[0m[1m[34mgraphrag[0m][0m [36mavailable_models[0m=[35m['qwen2.5:7b', 'bge-m3:latest'][0m [36mbase_url[0m=[35mhttp://ollama:11434[0m
+graphrag-backend  | /usr/local/lib/python3.11/site-packages/psycopg_pool/pool_async.py:167: RuntimeWarning: opening the async pool AsyncConnectionPool in the constructor is deprecated and will not be supported anymore in a future release. Please use `await pool.open()`, or use the pool as context manager using: `async with AsyncConnectionPool(...) as pool: `...
+graphrag-backend  |   warnings.warn(
+graphrag-backend  | [2m2026-07-08T10:36:14.690429Z[0m [[32m[1minfo     [0m] [1mlanggraph_postgres_checkpointer_ready[0m [[0m[1m[34mgraphrag[0m][0m
+graphrag-backend  | [1mHTTP Request: GET http://qdrant:6333/collections/graphrag_documents "HTTP/1.1 200 OK"[0m
+graphrag-backend  | [1mHTTP Request: GET http://qdrant:6333 "HTTP/1.1 200 OK"[0m
+graphrag-backend  | [2m2026-07-08T10:36:14.700407Z[0m [[32m[1minfo     [0m] [1mlanggraph_graph_compiled      [0m [[0m[1m[34mgraphrag[0m][0m
+graphrag-backend  | [2m2026-07-08T10:36:14.700591Z[0m [[32m[1minfo     [0m] [1mlanggraph_agent_pre_warmed    [0m [[0m[1m[34mgraphrag[0m][0m
+graphrag-backend  | [2m2026-07-08T10:36:14.700869Z[0m [[32m[1minfo     [0m] [1mgraphrag_memory_initialized   [0m [[0m[1m[34mgraphrag[0m][0m
+graphrag-backend  | [2m2026-07-08T10:36:14.702179Z[0m [[32m[1minfo     [0m] [1mqdrant_collection_exists      [0m [[0m[1m[34mgraphrag[0m][0m [36mcollection[0m=[35mgraphrag_documents[0m
+graphrag-backend  | [2m2026-07-08T10:36:14.702533Z[0m [[32m[1minfo     [0m] [1mqdrant_connected              [0m [[0m[1m[34mgraphrag[0m][0m [36mcollection[0m=[35mgraphrag_documents[0m [36mhost[0m=[35mqdrant[0m [36mport[0m=[35m6333[0m
+graphrag-backend  | [1mHTTP Request: GET http://ollama:11434/api/tags "HTTP/1.1 200 OK"[0m
+graphrag-backend  | [2m2026-07-08T10:36:14.708754Z[0m [[32m[1minfo     [0m] [1mollama_connected              [0m [[0m[1m[34mgraphrag[0m][0m [36mavailable_models[0m=[35m['qwen2.5:7b', 'bge-m3:latest'][0m [36mbase_url[0m=[35mhttp://ollama:11434[0m
+graphrag-backend  | /usr/local/lib/python3.11/site-packages/psycopg_pool/pool_async.py:167: RuntimeWarning: opening the async pool AsyncConnectionPool in the constructor is deprecated and will not be supported anymore in a future release. Please use `await pool.open()`, or use the pool as context manager using: `async with AsyncConnectionPool(...) as pool: `...
+graphrag-backend  |   warnings.warn(
+graphrag-backend  | [2m2026-07-08T10:36:14.721049Z[0m [[32m[1minfo     [0m] [1mlanggraph_postgres_checkpointer_ready[0m [[0m[1m[34mgraphrag[0m][0m
+graphrag-backend  | [2m2026-07-08T10:36:14.730889Z[0m [[32m[1minfo     [0m] [1mlanggraph_graph_compiled      [0m [[0m[1m[34mgraphrag[0m][0m
+graphrag-backend  | [2m2026-07-08T10:36:14.731094Z[0m [[32m[1minfo     [0m] [1mlanggraph_agent_pre_warmed    [0m [[0m[1m[34mgraphrag[0m][0m
+graphrag-backend  | [2m2026-07-08T10:36:14.731367Z[0m [[32m[1minfo     [0m] [1mgraphrag_memory_initialized   [0m [[0m[1m[34mgraphrag[0m][0m
+graphrag-backend  | [1msetup plugin alembic.autogenerate.schemas[0m
+graphrag-backend  | [1msetup plugin alembic.autogenerate.tables[0m
+graphrag-backend  | [1msetup plugin alembic.autogenerate.types[0m
+graphrag-backend  | [1msetup plugin alembic.autogenerate.constraints[0m
+graphrag-backend  | [1msetup plugin alembic.autogenerate.defaults[0m
+graphrag-backend  | [1msetup plugin alembic.autogenerate.comments[0m
+graphrag-backend  | INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+graphrag-backend  | INFO  [alembic.runtime.migration] Will assume transactional DDL.
+graphrag-backend  | /usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py:1249: RuntimeWarning: coroutine 'AsyncConnection.close' was never awaited
+graphrag-backend  |   conn.close()
+graphrag-backend  | RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+graphrag-backend  | [1msetup plugin alembic.autogenerate.schemas[0m
+graphrag-backend  | [1msetup plugin alembic.autogenerate.tables[0m
+graphrag-backend  | [1msetup plugin alembic.autogenerate.types[0m
+graphrag-backend  | [1msetup plugin alembic.autogenerate.constraints[0m
+graphrag-backend  | [1msetup plugin alembic.autogenerate.defaults[0m
+graphrag-backend  | [1msetup plugin alembic.autogenerate.comments[0m
+graphrag-backend  | INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+graphrag-backend  | INFO  [alembic.runtime.migration] Will assume transactional DDL.
+graphrag-backend  | /usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py:1249: RuntimeWarning: coroutine 'AsyncConnection.close' was never awaited
+graphrag-backend  |   conn.close()
+graphrag-backend  | RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] select pg_catalog.version()
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [raw sql] ()
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] select current_schema()
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [raw sql] ()
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] show standard_conforming_strings
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [raw sql] ()
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [generated in 0.00022s] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".email = $1::VARCHAR
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [generated in 0.00016s] ('admin@graphrag.local',)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 7.395s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 7.397s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 7.702s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 8.014s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 8.328s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | sys:1: SAWarning: Column 'chat_session.id' is marked as a member of the primary key for table 'chat_session', but has no Python-side or server-side default generator indicated, nor does it indicate 'autoincrement=True' or 'nullable=True', and no explicit value is passed.  Primary key columns typically may not store NULL.
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] INSERT INTO chat_session (created_at, user_id, name, username) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::INTEGER, $3::VARCHAR, $4::VARCHAR)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [generated in 0.00011s] (datetime.datetime(2026, 7, 8, 10, 36, 25, 114821, tzinfo=datetime.timezone.utc), 1, '', None)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 8.646s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT chat_session.created_at, chat_session.id, chat_session.user_id, chat_session.name, chat_session.username 
+graphrag-backend  | FROM chat_session 
+graphrag-backend  | WHERE chat_session.user_id = $1::INTEGER ORDER BY chat_session.created_at DESC
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [generated in 0.00011s] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 8.96s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 9.271s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 9.583s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 9.893s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 11.71s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".email = $1::VARCHAR
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 5.121s ago] ('analyst@graphrag.local',)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 12.51s ago] (2,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".email = $1::VARCHAR
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 5.917s ago] ('viewer@graphrag.local',)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] BEGIN (implicit)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] SELECT "user".created_at, "user".id, "user".email, "user".hashed_password, "user".username, "user".role, "user".department, "user".clearance_level, "user".is_active 
+graphrag-backend  | FROM "user" 
+graphrag-backend  | WHERE "user".id = $1::INTEGER
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] [cached since 26s ago] (1,)
+graphrag-backend  | INFO  [sqlalchemy.engine.Engine] ROLLBACK

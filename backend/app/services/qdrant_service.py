@@ -174,7 +174,7 @@ class QdrantService:
                 }
             )
 
-        logger.debug(
+        logger.info(
             "qdrant_search_completed",
             top_k=top_k,
             results=len(hits),

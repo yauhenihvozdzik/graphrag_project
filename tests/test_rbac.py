@@ -75,7 +75,10 @@ class TestRBACService:
         )
         if hasattr(rbac_service, "build_cypher_filter"):
             result = rbac_service.build_cypher_filter(ctx)
-            assert isinstance(result, str)
+            assert isinstance(result, tuple)
+            where_clause, params = result
+            assert isinstance(where_clause, str)
+            assert isinstance(params, dict)
 
     def test_clearance_ordering(self):
         """Clearance levels have a logical ordering."""
@@ -157,8 +160,9 @@ class TestRBACService:
         )
         ctx = AccessContext(user_id="u6", role=Role.VIEWER, department="legal", clearance=ClearanceLevel.CONFIDENTIAL)
         result = rbac_service.build_cypher_filter(ctx)
-        assert "clearance_level" in result
-        assert "department" in result
+        where_clause, params = result
+        assert "clearance_level" in where_clause
+        assert "department" in where_clause
 
     def test_build_cypher_filter_admin_empty(self):
         """Admin gets empty filter (no restrictions)."""
@@ -167,4 +171,6 @@ class TestRBACService:
         )
         ctx = AccessContext(user_id="admin", role=Role.ADMIN, department="all", clearance=ClearanceLevel.SECRET)
         result = rbac_service.build_cypher_filter(ctx)
-        assert result == ""
+        where_clause, params = result
+        assert where_clause == ""
+        assert params == {}

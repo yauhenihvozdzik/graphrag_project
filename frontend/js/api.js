@@ -3,6 +3,7 @@
  */
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000/api/v1' : '/api/v1';
+const UNAUTHORIZED_EVENT = 'auth:unauthorized';
 
 function parseValidationError(errBody) {
     if (errBody.errors && errBody.errors.length > 0) {
@@ -20,27 +21,48 @@ class GraphRAGApi {
     setToken(token) { this.token = token; localStorage.setItem('graphrag_token', token); }
     clearToken() { this.token = null; localStorage.removeItem('graphrag_token'); localStorage.removeItem('graphrag_user'); }
 
+    // ── Internal request helper with global 401 interception ──
+    async _request(url, options = {}) {
+        // Build headers: default Content-Type for JSON, skip for FormData (browser sets it)
+        const headers = {
+            ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+            ...(this.token ? { 'Authorization': `Bearer ${this.token}` } : {}),
+            ...options.headers,
+        };
+
+        const response = await fetch(url, { ...options, headers });
+
+        // Global 401 interception — skip for auth endpoints (login/register)
+        if (response.status === 401 && !options._skipAuthCheck) {
+            this.clearToken();
+            window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+            throw new Error('Unauthorized');
+        }
+
+        return response;
+    }
+
     // ── Generic HTTP helpers ─────────────────────
     async get(path) {
-        const r = await fetch(`${API_BASE}${path}`, { headers: this.headers });
+        const r = await this._request(`${API_BASE}${path}`);
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || e.message || 'Ошибка запроса'); }
         return r.json();
     }
 
     async post(path, body = {}) {
-        const r = await fetch(`${API_BASE}${path}`, { method: 'POST', headers: this.headers, body: JSON.stringify(body) });
+        const r = await this._request(`${API_BASE}${path}`, { method: 'POST', body: JSON.stringify(body) });
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || e.message || 'Ошибка запроса'); }
         return r.json();
     }
 
     async put(path, body = {}) {
-        const r = await fetch(`${API_BASE}${path}`, { method: 'PUT', headers: this.headers, body: JSON.stringify(body) });
+        const r = await this._request(`${API_BASE}${path}`, { method: 'PUT', body: JSON.stringify(body) });
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || e.message || 'Ошибка запроса'); }
         return r.json();
     }
 
     async del(path) {
-        const r = await fetch(`${API_BASE}${path}`, { method: 'DELETE', headers: this.headers });
+        const r = await this._request(`${API_BASE}${path}`, { method: 'DELETE' });
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || e.message || 'Ошибка запроса'); }
         return r.json();
     }
@@ -52,30 +74,48 @@ class GraphRAGApi {
     }
 
     async login(email, password) {
+        // Login uses direct fetch — 401 means wrong credentials, not expired token
         const r = await fetch(`${API_BASE}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); }
         const d = await r.json(); this.setToken(d.access_token); return d;
     }
 
     async register(fn, email, password) {
+        // Register uses direct fetch — same reasoning as login
         const r = await fetch(`${API_BASE}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: fn, email, password }) });
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); }
         return r.json();
     }
 
-    async getMe() { const r = await fetch(`${API_BASE}/auth/me`, { headers: this.headers }); if (!r.ok) { this.clearToken(); throw new Error('Не авторизован'); } return r.json(); }
+    async getMe() {
+        const r = await this._request(`${API_BASE}/auth/me`);
+        if (!r.ok) { this.clearToken(); throw new Error('Не авторизован'); }
+        return r.json();
+    }
 
     async getUsers(params = {}) {
-        const qs = new URLSearchParams(params); const r = await fetch(`${API_BASE}/auth/users?${qs}`, { headers: this.headers });
-        if (!r.ok) throw new Error('Ошибка загрузки пользователей'); return r.json();
+        const qs = new URLSearchParams(params);
+        const r = await this._request(`${API_BASE}/auth/users?${qs}`);
+        if (!r.ok) throw new Error('Ошибка загрузки пользователей');
+        return r.json();
     }
-    async updateUser(uid, d) { const r = await fetch(`${API_BASE}/auth/users/${uid}`, { method: 'PUT', headers: this.headers, body: JSON.stringify(d) }); if (!r.ok) throw new Error('Ошибка обновления'); return r.json(); }
-    async deleteUser(uid) { const r = await fetch(`${API_BASE}/auth/users/${uid}`, { method: 'DELETE', headers: this.headers }); if (!r.ok) throw new Error('Ошибка удаления'); return r.json(); }
+
+    async updateUser(uid, d) {
+        const r = await this._request(`${API_BASE}/auth/users/${uid}`, { method: 'PUT', body: JSON.stringify(d) });
+        if (!r.ok) throw new Error('Ошибка обновления');
+        return r.json();
+    }
+
+    async deleteUser(uid) {
+        const r = await this._request(`${API_BASE}/auth/users/${uid}`, { method: 'DELETE' });
+        if (!r.ok) throw new Error('Ошибка удаления');
+        return r.json();
+    }
 
     async impersonate(uid) {
         this.setAdminToken(this.token);
         try {
-            const r = await fetch(`${API_BASE}/auth/users/${uid}/impersonate`, { method: 'POST', headers: this.headers });
+            const r = await this._request(`${API_BASE}/auth/users/${uid}/impersonate`, { method: 'POST' });
             if (!r.ok) { const e = await r.json().catch(() => ({})); this.restoreAdminToken(); throw new Error(parseValidationError(e)); }
             const d = await r.json(); this.setToken(d.access_token); return d;
         } catch (e) { this.restoreAdminToken(); throw e; }
@@ -83,25 +123,123 @@ class GraphRAGApi {
 
     async sendMessage(m, sid = null) {
         const b = { messages: [{ role: "user", content: m }] }; if (sid) b.session_id = sid;
-        const r = await fetch(`${API_BASE}/chat`, { method: 'POST', headers: this.headers, body: JSON.stringify(b) });
-        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); } return r.json();
+        const r = await this._request(`${API_BASE}/chat`, { method: 'POST', body: JSON.stringify(b) });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); }
+        return r.json();
     }
 
-    async getIngestStatus(did) { const r = await fetch(`${API_BASE}/ingest/status/${did}`, { headers: this.headers }); if (!r.ok) throw new Error('Статус не найден'); return r.json(); }
-    async ingestText(t, tx, cl, dp) { const r = await fetch(`${API_BASE}/ingest`, { method: 'POST', headers: this.headers, body: JSON.stringify({ title: t, content: tx, clearance_level: parseInt(cl) || 0, department: dp }) }); if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); } return r.json(); }
-    async ingestFile(f, cl, dp) { const fd = new FormData(); fd.append('file', f); fd.append('clearance_level', String(cl ?? 0)); fd.append('department', dp || 'all'); const r = await fetch(`${API_BASE}/ingest/file`, { method: 'POST', headers: { 'Authorization': `Bearer ${this.token}` }, body: fd }); if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Ошибка загрузки файла'); } return r.json(); }
-    async ingestUrl(u, t, cl, dp) { const r = await fetch(`${API_BASE}/ingest/url`, { method: 'POST', headers: this.headers, body: JSON.stringify({ url: u, title: t, clearance_level: parseInt(cl) || 0, department: dp }) }); if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Ошибка загрузки URL'); } return r.json(); }
-    async getChatHistory(l = 100) { const r = await fetch(`${API_BASE}/chat/history?limit=${l}`, { headers: this.headers }); if (!r.ok) return { messages: [] }; return r.json(); }
-    async clearChatHistory() { const r = await fetch(`${API_BASE}/chat/history`, { method: 'DELETE', headers: this.headers }); if (!r.ok) throw new Error('Ошибка очистки истории'); return r.json(); }
-    async clearGraphData() { const r = await fetch(`${API_BASE}/graph/clear`, { method: 'DELETE', headers: this.headers }); if (!r.ok) throw new Error('Ошибка очистки графа'); return r.json(); }
-    async updateDocument(docId, clearance, department) { const r = await fetch(`${API_BASE}/graph/document/${docId}`, { method: 'PUT', headers: this.headers, body: JSON.stringify({ clearance_level: parseInt(clearance), department }) }); if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); } return r.json(); }
-    async getServiceConfig() { const r = await fetch(`${API_BASE}/config/services`, { headers: this.headers }); if (!r.ok) throw new Error('Ошибка конфигурации'); return r.json(); }
-    async getGraphStats() { const r = await fetch(`${API_BASE}/graph/stats`, { headers: this.headers }); if (!r.ok) throw new Error('Ошибка статистики'); return r.json(); }
-    async runTests() { const r = await fetch(`${API_BASE}/tests/run`, { method: 'POST', headers: this.headers }); if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); } return r.json(); }
-    async getDepartments() { const r = await fetch(`${API_BASE}/departments/`, { headers: this.headers }); if (!r.ok) throw new Error('Ошибка загрузки отделов'); return r.json(); }
-    async createDepartment(name, code, desc) { const r = await fetch(`${API_BASE}/departments/`, { method: 'POST', headers: this.headers, body: JSON.stringify({ name, code, description: desc || null }) }); if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); } return r.json(); }
-    async updateDepartment(id, name, code, desc) { const r = await fetch(`${API_BASE}/departments/${id}`, { method: 'PUT', headers: this.headers, body: JSON.stringify({ name, code, description: desc || null }) }); if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); } return r.json(); }
-    async deleteDepartment(id) { const r = await fetch(`${API_BASE}/departments/${id}`, { method: 'DELETE', headers: this.headers }); if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); } return r.json(); }
+    async getIngestStatus(did) {
+        const r = await this._request(`${API_BASE}/ingest/status/${did}`);
+        if (!r.ok) throw new Error('Статус не найден');
+        return r.json();
+    }
+
+    async ingestText(t, tx, cl, dp) {
+        const r = await this._request(`${API_BASE}/ingest`, {
+            method: 'POST',
+            body: JSON.stringify({ title: t, content: tx, clearance_level: parseInt(cl) || 0, department: dp }),
+        });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); }
+        return r.json();
+    }
+
+    async ingestFile(f, cl, dp) {
+        const fd = new FormData();
+        fd.append('file', f);
+        fd.append('clearance_level', String(cl ?? 0));
+        fd.append('department', dp || 'all');
+        const r = await this._request(`${API_BASE}/ingest/file`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${this.token}` },
+            body: fd,
+        });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Ошибка загрузки файла'); }
+        return r.json();
+    }
+
+    async ingestUrl(u, t, cl, dp) {
+        const r = await this._request(`${API_BASE}/ingest/url`, {
+            method: 'POST',
+            body: JSON.stringify({ url: u, title: t, clearance_level: parseInt(cl) || 0, department: dp }),
+        });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Ошибка загрузки URL'); }
+        return r.json();
+    }
+
+    async getChatHistory(l = 100) {
+        const r = await this._request(`${API_BASE}/chat/history?limit=${l}`);
+        if (!r.ok) return { messages: [] };
+        return r.json();
+    }
+
+    async clearChatHistory() {
+        const r = await this._request(`${API_BASE}/chat/history`, { method: 'DELETE' });
+        if (!r.ok) throw new Error('Ошибка очистки истории');
+        return r.json();
+    }
+
+    async clearGraphData() {
+        const r = await this._request(`${API_BASE}/graph/clear`, { method: 'DELETE' });
+        if (!r.ok) throw new Error('Ошибка очистки графа');
+        return r.json();
+    }
+
+    async updateDocument(docId, clearance, department) {
+        const r = await this._request(`${API_BASE}/graph/document/${docId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ clearance_level: parseInt(clearance), department }),
+        });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); }
+        return r.json();
+    }
+
+    async getServiceConfig() {
+        const r = await this._request(`${API_BASE}/config/services`);
+        if (!r.ok) throw new Error('Ошибка конфигурации');
+        return r.json();
+    }
+
+    async getGraphStats() {
+        const r = await this._request(`${API_BASE}/graph/stats`);
+        if (!r.ok) throw new Error('Ошибка статистики');
+        return r.json();
+    }
+
+    async runTests() {
+        const r = await this._request(`${API_BASE}/tests/run`, { method: 'POST' });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); }
+        return r.json();
+    }
+
+    async getDepartments() {
+        const r = await this._request(`${API_BASE}/departments/`);
+        if (!r.ok) throw new Error('Ошибка загрузки отделов');
+        return r.json();
+    }
+
+    async createDepartment(name, code, desc) {
+        const r = await this._request(`${API_BASE}/departments/`, {
+            method: 'POST',
+            body: JSON.stringify({ name, code, description: desc || null }),
+        });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); }
+        return r.json();
+    }
+
+    async updateDepartment(id, name, code, desc) {
+        const r = await this._request(`${API_BASE}/departments/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ name, code, description: desc || null }),
+        });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); }
+        return r.json();
+    }
+
+    async deleteDepartment(id) {
+        const r = await this._request(`${API_BASE}/departments/${id}`, { method: 'DELETE' });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(parseValidationError(e)); }
+        return r.json();
+    }
 }
 
 // ── Admin Settings API ────────────────────────────

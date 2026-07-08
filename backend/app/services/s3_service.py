@@ -64,8 +64,9 @@ class S3Service:
                 fname = Path(s3_original_key).name
                 logger.info("s3_original_downloaded", document_id=doc_id, key=s3_original_key)
                 return body, ct, fname
-            except Exception:
-                pass  # fall through to generic search
+            except Exception as e:
+                logger.warning(f"S3 get_original error: {e}")
+                # fall through to generic search
         raise HTTPException(404, "Оригинальный файл не найден в хранилище")
 
     def upload_document(self, doc_id: str, content: str, content_type: str = "text/plain") -> str:
@@ -105,7 +106,7 @@ class S3Service:
                 self._get_client().delete_object(Bucket=settings.S3_BUCKET, Key=key)
                 logger.info("s3_document_deleted", document_id=doc_id, key=key)
             except Exception as e:
-                pass
+                logger.warning(f"S3 delete_document error for {key}: {e}")
 
 
 s3_service = S3Service()

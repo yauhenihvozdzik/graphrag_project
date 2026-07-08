@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.core.metrics import setup_metrics
 from app.core.middleware import (
-    LoggingContextMiddleware, MetricsMiddleware, SecurityHeadersMiddleware,
+    LoggingContextMiddleware, MetricsMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware,
 )
 from app.core.observability import instrument_fastapi, setup_opentelemetry
 
@@ -70,13 +70,16 @@ async def lifespan(app: FastAPI):
     settings.PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     setup_opentelemetry()
     try:
-        from app.services.neo4j_service import neo4j_service; await neo4j_service.initialize()
+        from app.services.neo4j_service import neo4j_service
+        await neo4j_service.initialize()
     except Exception as e: logger.exception("neo4j_initialization_failed", error=str(e))
     try:
-        from app.services.qdrant_service import qdrant_service; await qdrant_service.initialize()
+        from app.services.qdrant_service import qdrant_service
+        await qdrant_service.initialize()
     except Exception as e: logger.exception("qdrant_initialization_failed", error=str(e))
     try:
-        from app.services.ollama_service import ollama_service; await ollama_service.initialize()
+        from app.services.ollama_service import ollama_service
+        await ollama_service.initialize()
     except Exception as e: logger.exception("ollama_initialization_failed", error=str(e))
     try:
         from app.core.langgraph.agent import graphrag_agent; await graphrag_agent.create_graph()
@@ -158,6 +161,7 @@ app.add_middleware(
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(MetricsMiddleware)
 app.add_middleware(LoggingContextMiddleware)
+app.add_middleware(RateLimitMiddleware)
 
 setup_metrics(app)
 instrument_fastapi(app)

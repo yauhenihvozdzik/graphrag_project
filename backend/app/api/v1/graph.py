@@ -10,6 +10,7 @@ from app.core.logging import logger
 from app.core.security.rbac import AccessContext, rbac_service
 from app.models.schemas import (
     GraphSearchRequest, GraphVisualizationResponse, GraphNode, GraphEdge,
+    UpdateDocumentRequest,
 )
 from app.services.neo4j_service import neo4j_service
 from qdrant_client import models
@@ -40,8 +41,8 @@ async def get_graph_visualization(
     access_context: AccessContext = Depends(get_access_context),
 ):
     try:
-        rbac_filter = rbac_service.build_cypher_filter(access_context)
-        data = await neo4j_service.get_visualization_data(limit=limit, rbac_filter=rbac_filter)
+        rbac_filter, rbac_params = rbac_service.build_cypher_filter(access_context)
+        data = await neo4j_service.get_visualization_data(limit=limit, rbac_filter=rbac_filter, rbac_params=rbac_params)
         nodes = [GraphNode(id=n.get("id",""), name=n.get("name",""), type=n.get("type","entity"),
                    properties={k:v for k,v in n.items() if k not in ("id","name","type")}) for n in data.get("nodes",[]) if n.get("id")]
         edges = [GraphEdge(source=e.get("source",""), target=e.get("target",""), type=e.get("type",""),
@@ -54,8 +55,9 @@ async def get_graph_visualization(
 async def search_graph(request: Request, search_request: GraphSearchRequest,
     current_user=Depends(get_current_user), access_context=Depends(get_access_context)):
     try:
+        rbac_filter, rbac_params = rbac_service.build_cypher_filter(access_context)
         entities = await neo4j_service.search_entities(query=search_request.query, entity_type=search_request.entity_type,
-            limit=search_request.limit, rbac_filter=rbac_service.build_cypher_filter(access_context))
+            limit=search_request.limit, rbac_filter=rbac_filter, rbac_params=rbac_params)
         return {"success": True, "query": search_request.query, "count": len(entities), "entities": entities}
     except Exception as e: logger.exception("graph_search_failed", error=str(e)); raise HTTPException(500, str(e))
 
@@ -64,8 +66,9 @@ async def search_graph(request: Request, search_request: GraphSearchRequest,
 async def get_entity_neighborhood(request: Request, entity_name: str, depth: int=Query(default=2,ge=1,le=5),
     limit: int=Query(default=50,ge=1,le=200), current_user=Depends(get_current_user), access_context=Depends(get_access_context)):
     try:
+        rbac_filter, rbac_params = rbac_service.build_cypher_filter(access_context)
         data = await neo4j_service.get_entity_neighborhood(entity_name=entity_name, depth=depth, limit=limit,
-            rbac_filter=rbac_service.build_cypher_filter(access_context))
+            rbac_filter=rbac_filter, rbac_params=rbac_params)
         return {"success": True, "entity": entity_name, "nodes": data.get("nodes",[]), "edges": data.get("edges",[])}
     except Exception as e: logger.exception("entity_failed", error=str(e)); raise HTTPException(500, str(e))
 
@@ -78,7 +81,8 @@ async def get_graph_stats(current_user=Depends(get_current_user)):
         try:
             from app.services.qdrant_service import qdrant_service
             qdrant_info = await qdrant_service.get_collection_info()
-        except Exception: pass
+        except Exception as e:
+            logger.warning(f"Graph stats qdrant error: {e}")
         return {"success": True, "graph": stats, "vectors": qdrant_info}
     except Exception as e: logger.exception("stats_failed", error=str(e)); raise HTTPException(500, str(e))
 
@@ -91,16 +95,21 @@ async def clear_graph_data(current_user=Depends(get_current_user)):
             async with neo4j_service.session() as s:
                 records = await (await s.run("MATCH (d:Document) RETURN d.id AS doc_id")).data()
                 doc_ids = [r["doc_id"] for r in records]
-        except Exception: pass
+        except Exception as e:
+            logger.warning(f"Graph clear fetch documents error: {e}")
         async with neo4j_service.session() as s: await s.run("MATCH (n) DETACH DELETE n")
         from app.services.qdrant_service import qdrant_service as qs
         from app.core.config import settings
-        try: await qs._client.delete_collection(settings.QDRANT_COLLECTION)
-        except Exception: pass
+        try:
+            await qs._client.delete_collection(settings.QDRANT_COLLECTION)
+        except Exception as e:
+            logger.warning(f"Graph clear delete collection error: {e}")
         await qs.initialize()
         for doc_id in doc_ids:
-            try: s3_service.delete_document(doc_id)
-            except Exception: pass
+            try:
+                s3_service.delete_document(doc_id)
+            except Exception as e:
+                logger.warning(f"Graph clear s3 delete error for {doc_id}: {e}")
         # Clear file_metadata table in PostgreSQL (dedup check source)
         try:
             from app.services.database import database_service
@@ -219,11 +228,12 @@ async def download_document(doc_id: str, current_user=Depends(get_current_user))
 
 
 @router.put("/document/{doc_id}")
-async def update_document(doc_id: str, updates: dict, current_user=Depends(get_current_user)):
+async def update_document(doc_id: str, updates: UpdateDocumentRequest, current_user=Depends(get_current_user)):
     """Обновление clearance_level и department документа в Neo4j + Qdrant."""
     try:
-        clearance_level = updates.get("clearance_level", 0)
-        department = updates.get("department", "all")
+        update_data = updates.model_dump(exclude_none=True)
+        clearance_level = update_data.get("clearance_level", 0)
+        department = update_data.get("department", "all")
 
         # Update Neo4j Document node
         doc = await neo4j_service.update_document_access(doc_id=doc_id, clearance_level=clearance_level, department=department)
@@ -258,13 +268,19 @@ async def delete_document(doc_id: str, current_user=Depends(get_current_user)):
         async with neo4j_service.session() as s:
             await s.run("MATCH (d:Document {id:$doc_id}) OPTIONAL MATCH (d)<-[:PART_OF]-(c:Chunk) OPTIONAL MATCH (c)<-[:MENTIONED_IN]-(e:Entity) DETACH DELETE e,c,d", doc_id=doc_id)
         from app.services.qdrant_service import qdrant_service as qs
-        try: await qs.delete_by_document(doc_id)
-        except Exception: pass
-        try: s3_service.delete_document(doc_id)
-        except Exception: pass
+        try:
+            await qs.delete_by_document(doc_id)
+        except Exception as e:
+            logger.warning(f"Graph delete document qdrant error for {doc_id}: {e}")
+        try:
+            s3_service.delete_document(doc_id)
+        except Exception as e:
+            logger.warning(f"Graph delete document s3 error for {doc_id}: {e}")
         from app.services.database import database_service
-        try: database_service.delete_file_metadata_by_document(doc_id)
-        except Exception: pass
+        try:
+            database_service.delete_file_metadata_by_document(doc_id)
+        except Exception as e:
+            logger.warning(f"Graph delete document metadata error for {doc_id}: {e}")
         logger.info("document_deleted", doc_id=doc_id)
         return {"success": True, "message": "Документ удалён (Neo4j + Qdrant + S3 + file_metadata)"}
     except Exception as e: logger.exception("delete_failed", error=str(e)); raise HTTPException(500, str(e))
