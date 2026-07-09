@@ -203,12 +203,25 @@ async def delete_user(user_id: int, user=Depends(get_current_user)):
 
 
 @router.post("/users/{user_id}/impersonate", response_model=TokenResponse)
-async def impersonate(user_id: int, user=Depends(get_current_user)):
+async def impersonate(user_id: int, request: Request, user=Depends(get_current_user)):
     if user.get("role") != "admin": raise HTTPException(403, "Только администратор")
     async with database_service.async_session() as session:
         user_service = UserService(session)
         target = await user_service.get_by_id(user_id)
         if not target: raise HTTPException(404, "Пользователь не найден")
         token = create_access_token(user_id=target.id, email=target.email, role=target.role)
+        # Write audit log entry
+        import json
+        from app.models.audit_log import AuditLog
+        audit = AuditLog(
+            user_id=int(user["user_id"]),
+            action="user.impersonate",
+            entity_type="user",
+            entity_id=user_id,
+            details=json.dumps({"admin_email": user.get("email"), "target_email": target.email}),
+            ip_address=request.client.host if request.client else None,
+        )
+        session.add(audit)
+        await session.commit()
         logger.info("impersonate", admin_id=user["user_id"], target_id=user_id)
         return TokenResponse(access_token=token.access_token, token_type=token.token_type, expires_at=token.expires_at)

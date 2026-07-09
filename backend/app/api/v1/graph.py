@@ -82,7 +82,7 @@ async def get_graph_stats(current_user=Depends(get_current_user)):
             from app.services.qdrant_service import qdrant_service
             qdrant_info = await qdrant_service.get_collection_info()
         except Exception as e:
-            logger.warning(f"Graph stats qdrant error: {e}")
+            logger.warning("graph_stats_qdrant_error", error=str(e))
         return {"success": True, "graph": stats, "vectors": qdrant_info}
     except Exception as e: logger.exception("stats_failed", error=str(e)); raise HTTPException(500, str(e))
 
@@ -96,20 +96,20 @@ async def clear_graph_data(current_user=Depends(get_current_user)):
                 records = await (await s.run("MATCH (d:Document) RETURN d.id AS doc_id")).data()
                 doc_ids = [r["doc_id"] for r in records]
         except Exception as e:
-            logger.warning(f"Graph clear fetch documents error: {e}")
+            logger.warning("graph_clear_fetch_documents_error", error=str(e))
         async with neo4j_service.session() as s: await s.run("MATCH (n) DETACH DELETE n")
         from app.services.qdrant_service import qdrant_service as qs
         from app.core.config import settings
         try:
             await qs._client.delete_collection(settings.QDRANT_COLLECTION)
         except Exception as e:
-            logger.warning(f"Graph clear delete collection error: {e}")
+            logger.warning("graph_clear_delete_collection_error", error=str(e))
         await qs.initialize()
         for doc_id in doc_ids:
             try:
                 s3_service.delete_document(doc_id)
             except Exception as e:
-                logger.warning(f"Graph clear s3 delete error for {doc_id}: {e}")
+                logger.warning("graph_clear_s3_delete_error", doc_id=doc_id, error=str(e))
         # Clear file_metadata table in PostgreSQL (dedup check source)
         try:
             from app.services.database import database_service
@@ -271,16 +271,16 @@ async def delete_document(doc_id: str, current_user=Depends(get_current_user)):
         try:
             await qs.delete_by_document(doc_id)
         except Exception as e:
-            logger.warning(f"Graph delete document qdrant error for {doc_id}: {e}")
+            logger.warning("graph_delete_document_qdrant_error", doc_id=doc_id, error=str(e))
         try:
             s3_service.delete_document(doc_id)
         except Exception as e:
-            logger.warning(f"Graph delete document s3 error for {doc_id}: {e}")
+            logger.warning("graph_delete_document_s3_error", doc_id=doc_id, error=str(e))
         from app.services.database import database_service
         try:
             database_service.delete_file_metadata_by_document(doc_id)
         except Exception as e:
-            logger.warning(f"Graph delete document metadata error for {doc_id}: {e}")
+            logger.warning("graph_delete_document_metadata_error", doc_id=doc_id, error=str(e))
         logger.info("document_deleted", doc_id=doc_id)
         return {"success": True, "message": "Документ удалён (Neo4j + Qdrant + S3 + file_metadata)"}
     except Exception as e: logger.exception("delete_failed", error=str(e)); raise HTTPException(500, str(e))

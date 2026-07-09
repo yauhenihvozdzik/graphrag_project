@@ -56,9 +56,6 @@ class SettingsRegistry:
         # sqlmodel.Session, not AsyncSession). Calling it with ``await``
         # would raise ``TypeError`` because a plain list is not awaitable.
         rows = database_service.get_all_admin_settings()
-        logger.info("settings_registry_initialize_debug",
-                    row_count=len(rows),
-                    row_keys=[(r.category, r.key, str(r.value)[:40]) for r in rows[:5]])
         self._rebuild_cache(rows)
         logger.info("settings_registry_initialized",
                     categories=list(self._settings.keys()),
@@ -91,7 +88,6 @@ class SettingsRegistry:
         :meth:`get_pii_patterns`."""
         self._injection_compiled = None
         self._pii_compiled = None
-        logger.info("compiled_patterns_invalidated")
 
     @staticmethod
     def _parse_value(raw: str) -> Any:

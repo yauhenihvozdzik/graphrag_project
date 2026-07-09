@@ -297,7 +297,7 @@ class DatabaseService:
                 try:
                     dt = datetime.fromisoformat(file_modified.replace("Z", "+00:00"))
                     q = q.where(FileMetadata.file_modified == dt)
-                except Exception:
+                except (ValueError, TypeError):
                     pass
             existing = s.exec(q).first()
             if existing:
@@ -318,7 +318,7 @@ class DatabaseService:
             if file_modified:
                 try:
                     r.file_modified = datetime.fromisoformat(file_modified.replace("Z", "+00:00"))
-                except Exception:
+                except (ValueError, TypeError):
                     pass
             s.add(r)
             s.commit()

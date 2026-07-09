@@ -23,7 +23,7 @@ SAMPLE_DOCUMENTS = [
             "необходимости беспрепятственного осуществления гражданских прав, обеспечения "
             "восстановления нарушенных прав, их судебной защиты."
         ),
-        "clearance_level": "unclassified",
+        "clearance_level": 0,
         "department": "legal",
     },
     {
@@ -36,7 +36,7 @@ SAMPLE_DOCUMENTS = [
             "который свободно соглашается, право распоряжаться своими способностями к труду, "
             "выбирать профессию и род деятельности."
         ),
-        "clearance_level": "unclassified",
+        "clearance_level": 0,
         "department": "legal",
     },
     {
@@ -48,7 +48,7 @@ SAMPLE_DOCUMENTS = [
             "государственными органами, органами местного самоуправления, юридическими лицами, "
             "физическими лицами с использованием средств автоматизации."
         ),
-        "clearance_level": "confidential",
+        "clearance_level": 2,
         "department": "legal",
     },
     {
@@ -59,7 +59,7 @@ SAMPLE_DOCUMENTS = [
             "должны быть зарегистрированы в журнале аудита. Передача документов за пределы "
             "организации требует письменного разрешения руководителя отдела безопасности."
         ),
-        "clearance_level": "secret",
+        "clearance_level": 3,
         "department": "management",
     },
 ]
@@ -85,9 +85,9 @@ def load_documents(token: str):
     for doc in SAMPLE_DOCUMENTS:
         try:
             resp = requests.post(
-                f"{API_BASE}/ingest/text",
+                f"{API_BASE}/ingest",
                 json={
-                    "text": doc["text"],
+                    "content": doc["text"],
                     "title": doc["title"],
                     "clearance_level": doc["clearance_level"],
                     "department": doc["department"],

@@ -1,5 +1,3 @@
-<!-- AUDIT: updated 2026-07-08 -->
-
 # GraphRAG Platform
 
 **Корпоративная платформа анализа знаний на основе Graph RAG**
@@ -50,12 +48,12 @@
 
 | Компонент | Технология | Назначение |
 |-----------|-----------|------------|
-| LLM | Ollama + qwen2.5:7b (основная) / T-lite-it-1.0 (7B) (опционально) | Генерация ответов на русском языке |
+| LLM | Ollama + qwen2.5:7b (основная) / T-lite-it-1.0 7B (опционально) | Генерация ответов на русском языке |
 | Embeddings | bge-m3 (1024-dim) | Векторные представления документов |
 | Vector DB | Qdrant | Семантический поиск с фильтрацией по RBAC |
 | Graph DB | Neo4j 5.26 Community | Граф знаний, связи сущностей |
 | Backend | FastAPI + LangGraph + Uvicorn | API, оркестрация RAG pipeline |
-| Auth | JWT + PostgreSQL 16 | Аутентификация, сессии, пользователи |
+| Auth | JWT (RS256) + PostgreSQL 16 | Аутентификация, сессии, пользователи |
 | Frontend | HTML/CSS/JS + Nginx:alpine | Веб-интерфейс (SPA, тёмная тема) |
 | Storage | MinIO (S3-совместимое) | Хранение документов и файлов |
 | Email | Mailpit (dev) / SMTP (prod) | Уведомления о регистрации и активации |
@@ -63,6 +61,7 @@
 | Metrics | Prometheus + Grafana | Метрики и мониторинг |
 | LLM UI | Open WebUI | Веб-интерфейс Ollama (порт 3100) |
 | DB Admin | pgAdmin | Управление PostgreSQL (порт 5050) |
+| Migrations | Alembic | Миграции схемы PostgreSQL |
 
 ## Быстрый старт
 
@@ -79,15 +78,18 @@
 git clone <repo-url>
 cd graphrag_project
 
-# 2. Запустить полный стек
+# 2. Создать .env из шаблона
+cp backend/.env.example backend/.env
+
+# 3. Запустить полный стек
 docker compose up -d
 
-# 3. Инициализировать приложение
+# 4. Инициализировать приложение
 chmod +x scripts/init.sh
 ./scripts/init.sh
 ```
 
-Примечание: `scripts/init.sh` запускает инфраструктуру, ожидает готовности сервисов, загружает модели Ollama (`qwen2.5:7b`, `bge-m3`), создаёт индексы Neo4j, seed-пользователей и запускает backend+frontend.
+Скрипт `scripts/init.sh` запускает инфраструктуру, ожидает готовности сервисов, загружает модели Ollama (`qwen2.5:7b`, `bge-m3`), создаёт индексы Neo4j, seed-пользователей и запускает backend+frontend. Подробнее см. [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### Доступ к сервисам
 
@@ -129,7 +131,7 @@ chmod +x scripts/init.sh
 - `DELETE /api/v1/chat/history` — Очистка истории
 
 ### Загрузка документов
-- `POST /api/v1/ingest` — Загрузка текста (с дедупликацией по хешу)
+- `POST /api/v1/ingest` — Загрузка текста (с дедупликацией по SHA-256)
 - `POST /api/v1/ingest/file` — Загрузка файла (PDF, DOCX, TXT, MD, ZIP)
 - `POST /api/v1/ingest/url` — Загрузка по URL
 - `GET /api/v1/ingest/status/{doc_id}` — Статус обработки
@@ -163,28 +165,42 @@ chmod +x scripts/init.sh
 - `GET /api/v1/auth/users` — Список пользователей (пагинация, фильтры, поиск)
 - `PUT /api/v1/auth/users/{id}` — Изменение пользователя (роль, отдел, активация)
 - `DELETE /api/v1/auth/users/{id}` — Удаление пользователя
-- `POST /api/v1/auth/users/{id}/impersonate` — Имперсонация (вход под пользователем)
+- `POST /api/v1/auth/users/{id}/impersonate` — Имперсонация (вход под пользователем, с записью в audit_log)
 
 ### Тестирование
 - `POST /api/v1/tests/run` — Запуск pytest через SSE (admin only)
 
 ### Система
 - `GET /api/v1/health` — Здоровье сервисов (Ollama, Neo4j, Qdrant)
-- `GET /api/v1/config/services` — Конфигурация сервисов для frontend
+- `GET /api/v1/config/services` — Конфигурация сервисов для frontend (без паролей)
 - `GET /metrics` — Prometheus метрики
 
 ## Безопасность
 
-### Auditor role
-- Роль `auditor` существует в коде (`backend/app/core/security/rbac.py`) — имеет доступ на чтение всех данных без права изменений.
-
-### RBAC (Контроль доступа)
-- **Роли**: admin, analyst, viewer, auditor
+### Аутентификация и авторизация
+- **JWT**: RS256 (RSA-ключи), access-токены (30 дней)
+- **Пароли**: bcrypt-хеширование
+- **RBAC**: 4 роли — admin, auditor, analyst, viewer (иерархические, admin > auditor > analyst > viewer)
 - **Отделы**: all, legal, research, management, compliance, hr, finance, it
-- **Уровни доступа**: 0 (public/открытый), 1 (internal/внутренний), 2 (confidential/конфиденциальный), 3 (secret/секретный)
-- Фильтрация на уровне узлов графа (Cypher WHERE) и векторного поиска (Qdrant payload filter)
-- **Активация аккаунтов**: пользователь регистрируется → получает email → админ активирует через панель пользователей → пользователь получает email об активации
-- **Имперсонация**: админ может войти под любым пользователем (в frontend сохраняется admin-токен для возврата)
+- **Clearance Level**: 0 (PUBLIC), 1 (INTERNAL), 2 (CONFIDENTIAL), 3 (SECRET)
+- **Двойная фильтрация**: на уровне Cypher-запросов (Neo4j) и payload-фильтров (Qdrant)
+- **Активация аккаунтов**: пользователь регистрируется → получает email → админ активирует → пользователь получает email об активации
+- **Деактивация**: администратор может заблокировать аккаунт (is_active=false)
+- **Имперсонация**: админ может войти под любым пользователем с записью в audit_log
+
+### Guardrails
+- **Входные**: двухуровневая PII-детекция (канонические паттерны + нормализация whitespace), prompt injection detection (21 паттерн, английский + русский, включая SSTI/LDAP/NoSQL), лимит длины
+- **Выходные**: PII-masking (телефоны, email, ИНН, СНИЛС, паспорт, банковские реквизиты), санитизация XSS/SQL-injection
+- **Динамическая конфигурация**: все параметры guardrails загружаются из SettingsRegistry и обновляются без перезапуска
+
+### Сетевая безопасность
+- **DMZ/Internal сегментация**: frontend, backend, Grafana в DMZ; БД, Ollama, observability в Internal
+- **CORS**: ограниченный список разрешённых источников (`ALLOWED_ORIGINS` в `.env`)
+- **Security Headers**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, HSTS, Cache-Control, Referrer-Policy
+
+### Аудит
+- **Audit Log**: запись критических действий в PostgreSQL (`audit_logs`): вход в систему, имперсонация, изменение пользователей, удаление документов
+- **Атрибуты записи**: user_id, action, entity_type, entity_id, details (JSON), ip_address, created_at
 
 ### Email-уведомления
 - При регистрации — письмо с ожиданием активации
@@ -192,11 +208,6 @@ chmod +x scripts/init.sh
 - Отправитель: `graph@rag.by`
 - **Разработка**: Mailpit (SMTP на порту 1025, Web UI на http://localhost:8025)
 - **Продакшен**: реальный SMTP через `SMTP_USER` / `SMTP_PASSWORD` в `backend/.env`
-
-### Guardrails
-- Фильтрация ПДн (ИНН, СНИЛС, паспорт, телефон, email, банковские реквизиты)
-- Детекция prompt injection (русский и английский языки)
-- Санитизация XSS/SQL injection
 
 ## Тестирование
 
@@ -218,7 +229,7 @@ graphrag_project/
 │   ├── grafana/                # Дашборды Grafana
 │   └── pgadmin/                # Конфигурация pgAdmin
 ├── scripts/
-│   ├── init.sh                 # Скрипт инициализации
+│   ├── init.sh                 # Скрипт полной инициализации
 │   ├── seed_users.py           # Создание демо-пользователей
 │   ├── seed_departments.py     # Создание отделов
 │   ├── load_datasets.py        # Загрузка демо-данных
@@ -231,24 +242,29 @@ graphrag_project/
 │   ├── Dockerfile              # nginx:alpine
 │   └── nginx.conf              # Прокси /api/* → backend:8000, SSE
 ├── backend/
-│   ├── app/
-│   │   ├── api/v1/             # REST API endpoints (auth, chat, ingest, graph, departments, tests)
-│   │   ├── core/
-│   │   │   ├── config.py       # Settings (env-based)
-│   │   │   ├── logging.py      # Структурное логирование (structlog)
-│   │   │   ├── metrics.py      # Prometheus метрики
-│   │   │   ├── middleware.py    # CORS, SecurityHeaders, Logging, Metrics
-│   │   │   ├── observability.py # OpenTelemetry трассировка
-│   │   │   ├── prompts.py      # Системные промпты и константы
-│   │   │   ├── graphrag/       # GraphRAG pipeline (ingestion, extraction, graph, vectors)
-│   │   │   ├── langgraph/      # LangGraph agent (agent, tools, memory)
-│   │   │   └── security/       # RBAC + Guardrails
-│   │   ├── models/             # Pydantic schemas + SQLModel (user, session, schemas)
-│   │   ├── services/           # Neo4j, Qdrant, Ollama, DB (PostgreSQL), S3 (MinIO)
-│   │   └── utils/              # Auth (JWT), sanitization
+│   ├── .env.example            # Шаблон конфигурации
 │   ├── Dockerfile
 │   ├── pyproject.toml
-│   └── .env
+│   ├── alembic.ini
+│   ├── alembic/                # Миграции PostgreSQL
+│   ├── generate_rsa_keys.py    # Генерация RSA-ключей для JWT
+│   └── app/
+│       ├── api/v1/             # REST API endpoints (auth, chat, ingest, graph, departments, tests, admin)
+│       ├── core/
+│       │   ├── config.py       # Settings (env-based)
+│       │   ├── constants.py    # Константы платформы
+│       │   ├── logging.py      # Структурное логирование (structlog)
+│       │   ├── metrics.py      # Prometheus метрики
+│       │   ├── middleware.py    # CORS, SecurityHeaders, Logging, Metrics, RateLimit
+│       │   ├── observability.py # OpenTelemetry трассировка
+│       │   ├── prompts.py      # Системные промпты и константы
+│       │   ├── settings_registry.py # Динамический реестр настроек с кэшированием
+│       │   ├── graphrag/       # GraphRAG pipeline (ingestion, extraction, graph, vectors)
+│       │   ├── langgraph/      # LangGraph agent (agent, tools, memory, agent_utils)
+│       │   └── security/       # RBAC + Guardrails
+│       ├── models/             # Pydantic schemas + SQLModel (user, session, message, audit_log, rbac_policy, admin)
+│       ├── services/           # Neo4j, Qdrant, Ollama, DB (PostgreSQL), S3 (MinIO), User, Session, Department, AdminSettings, File
+│       └── utils/              # Auth (JWT), sanitization
 ├── tests/                      # Pytest тесты
 │   ├── conftest.py             # Фикстуры
 │   ├── test_api.py
@@ -261,9 +277,12 @@ graphrag_project/
     ├── DEPLOYMENT.md
     ├── TECH_STACK.md
     ├── USER_GUIDE.md
-    └── VIDEO_DEMO_SCRIPT.md
+    ├── DEFENSE_PLAN.md
+    ├── VIDEO_DEMO_SCRIPT.md
+    ├── adr/                    # Architecture Decision Records
+    └── architecture/           # Архитектурные артефакты
 ```
 
-## Лицензия
+---
 
-Internal / Учебный проект
+> **GraphRAG Platform** — корпоративная RAG-система для защищённого анализа знаний с многоуровневым контролем доступа.

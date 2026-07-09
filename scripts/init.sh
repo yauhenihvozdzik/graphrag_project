@@ -7,6 +7,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
+# ── Default credentials (override via env vars) ─────
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@graphrag.local}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-Admin123!}"
+
 echo "╔══════════════════════════════════════════════╗"
 echo "║  GraphRAG Platform — Initialization          ║"
 echo "╚══════════════════════════════════════════════╝"
@@ -15,7 +19,7 @@ echo "╚═══════════════════════�
 echo ""
 echo "▸ Checking prerequisites..."
 
-for cmd in docker docker-compose curl python3; do
+for cmd in docker curl python3; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "  ✗ $cmd is not installed. Please install it first."
     exit 1
@@ -35,7 +39,7 @@ fi
 echo ""
 echo "▸ Starting infrastructure services..."
 cd "$PROJECT_DIR"
-docker-compose up -d neo4j qdrant postgres ollama jaeger prometheus grafana
+docker compose up -d neo4j qdrant postgres ollama jaeger prometheus grafana
 
 echo ""
 echo "▸ Waiting for services to be healthy..."
@@ -74,16 +78,16 @@ done
 # ── 4. Pull Ollama models ───────────────────────────
 echo ""
 echo "▸ Pulling Ollama models (this may take a while)..."
-docker exec graphrag-ollama ollama pull t-lite:7b-q4_K_M || echo "  ⚠ Failed to pull t-lite model"
+docker exec graphrag-ollama ollama pull qwen2.5:7b || echo "  ⚠ Failed to pull qwen2.5:7b model"
 docker exec graphrag-ollama ollama pull bge-m3 || echo "  ⚠ Failed to pull bge-m3 model"
 
 # ── 5. Initialize Neo4j constraints & indexes ───────
 echo ""
 echo "▸ Creating Neo4j constraints and indexes..."
 docker exec graphrag-neo4j cypher-shell -u neo4j -p neo4j_password \
-  "CREATE CONSTRAINT entity_id IF NOT EXISTS FOR (e:Entity) REQUIRE e.entity_id IS UNIQUE;" 2>/dev/null || true
+  "CREATE CONSTRAINT entity_id IF NOT EXISTS FOR (e:Entity) REQUIRE e.id IS UNIQUE;" 2>/dev/null || true
 docker exec graphrag-neo4j cypher-shell -u neo4j -p neo4j_password \
-  "CREATE CONSTRAINT document_id IF NOT EXISTS FOR (d:Document) REQUIRE d.document_id IS UNIQUE;" 2>/dev/null || true
+  "CREATE CONSTRAINT document_id IF NOT EXISTS FOR (d:Document) REQUIRE d.id IS UNIQUE;" 2>/dev/null || true
 docker exec graphrag-neo4j cypher-shell -u neo4j -p neo4j_password \
   "CREATE INDEX entity_name IF NOT EXISTS FOR (e:Entity) ON (e.name);" 2>/dev/null || true
 docker exec graphrag-neo4j cypher-shell -u neo4j -p neo4j_password \
@@ -92,17 +96,40 @@ docker exec graphrag-neo4j cypher-shell -u neo4j -p neo4j_password \
   "CREATE INDEX chunk_clearance IF NOT EXISTS FOR (c:Chunk) ON (c.clearance_level);" 2>/dev/null || true
 echo "  ✓ Neo4j indexes created"
 
-# ── 6. Seed users ───────────────────────────────────
-echo ""
-echo "▸ Seeding demo users..."
-cd "$SCRIPT_DIR"
-python3 seed_users.py || echo "  ⚠ User seeding failed (backend may not be running yet)"
-
-# ── 7. Start application services ───────────────────
+# ── 6. Start application services ───────────────────
 echo ""
 echo "▸ Starting application services..."
 cd "$PROJECT_DIR"
-docker-compose up -d backend frontend
+docker compose up -d backend frontend
+
+echo ""
+echo "▸ Waiting for backend to be healthy..."
+for i in $(seq 1 30); do
+  if curl -sf http://localhost:8000/api/v1/health &>/dev/null; then
+    echo "  ✓ Backend is ready"
+    break
+  fi
+  echo "  Waiting for backend... ($i/30)"
+  sleep 3
+done
+
+# ── 7. Seed departments (via standalone script) ─────
+echo ""
+echo "▸ Seeding departments..."
+cd "$SCRIPT_DIR"
+python3 seed_departments.py || echo "  ⚠ Department seeding failed"
+
+# ── 8. Seed users (via standalone script) ───────────
+echo ""
+echo "▸ Seeding demo users..."
+cd "$SCRIPT_DIR"
+python3 seed_users.py || echo "  ⚠ User seeding failed"
+
+# ── 9. Load demo datasets ───────────────────────────
+echo ""
+echo "▸ Loading demo datasets..."
+cd "$SCRIPT_DIR"
+python3 load_datasets.py || echo "  ⚠ Dataset loading failed"
 
 echo ""
 echo "╔══════════════════════════════════════════════╗"

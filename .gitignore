@@ -4,6 +4,7 @@
 
 # ─── Docker & Environment ──────────────────────
 docker-compose.override.yml
+.env
 .env.local
 .env.production
 *.env.backup
@@ -47,10 +48,13 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 
-# ─── Logs ──────────────────────────────────────
+# ─── Logs & Text files ─────────────────────────
 logs/*.log
 logs/*.log.*
 *.log
+*.txt
+!requirements.txt
+!README.md
 
 # ─── Data & Volumes ────────────────────────────
 data/

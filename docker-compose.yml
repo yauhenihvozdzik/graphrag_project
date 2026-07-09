@@ -16,7 +16,7 @@ services:
       - "7474:7474"
       - "7687:7687"
     environment:
-      NEO4J_AUTH: neo4j/neo4j_password
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4j_password}
       NEO4J_server_memory_heap_initial__size: 512m
       NEO4J_server_memory_heap_max__size: 1G
       NEO4J_server_memory_pagecache_size: 512m
@@ -26,7 +26,7 @@ services:
       - neo4j_data:/data
       - neo4j_logs:/logs
     healthcheck:
-      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "neo4j_password", "RETURN 1"]
+      test: ["CMD", "cypher-shell", "-u", "${NEO4J_USER:-neo4j}", "-p", "${NEO4J_PASSWORD:-neo4j_password}", "RETURN 1"]
       interval: 10s
       timeout: 10s
       retries: 10
@@ -58,13 +58,13 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: graphrag_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-graphrag_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d graphrag_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-graphrag_db}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -79,6 +79,8 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
     # NOTE: GPU acceleration via nvidia container-toolkit is only available on Linux/Windows hosts.
     # On macOS (Docker Desktop), GPU passthrough is not supported — Ollama will run on CPU.
     # On Linux with NVIDIA GPU, uncomment the deploy section below:
@@ -90,6 +92,12 @@ services:
     #         - driver: nvidia
     #           count: all
     #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 20s
     restart: unless-stopped
     networks:
       - graphrag-internal
@@ -100,20 +108,21 @@ services:
     container_name: graphrag-ollama-init
     depends_on:
       ollama:
-        condition: service_started
+        condition: service_healthy
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
+        set -e
         echo "Waiting for Ollama API..."
-        for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
-          curl -s http://ollama:11434/api/tags > /dev/null 2>&1 && break
-          echo "  Attempt $$i/15..."
-          sleep 4
+        for i in $(seq 1 30); do
+          curl -sf http://ollama:11434/api/tags > /dev/null 2>&1 && break
+          echo "  Attempt $$i/30..."
+          sleep 5
         done
         echo "Pulling bge-m3 (embedding)..."
-        curl -s -X POST http://ollama:11434/api/pull -d '{"name":"bge-m3","stream":false}'
+        curl -sf -X POST http://ollama:11434/api/pull -d '{"name":"bge-m3","stream":false}'
         echo "Pulling qwen2.5:7b (LLM)..."
-        curl -s -X POST http://ollama:11434/api/pull -d '{"name":"qwen2.5:7b","stream":false}'
+        curl -sf -X POST http://ollama:11434/api/pull -d '{"name":"qwen2.5:7b","stream":false}'
         echo "All models ready."
     restart: "no"
     networks:
@@ -127,8 +136,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     command: server --console-address ":9001" /data
     volumes:
       - minio_data:/data
@@ -185,7 +194,9 @@ services:
       postgres:
         condition: service_healthy
       ollama:
-        condition: service_started
+        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
     volumes:
       - backend_data:/app/data
       - backend_logs:/app/logs

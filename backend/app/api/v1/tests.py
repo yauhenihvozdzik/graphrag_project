@@ -1,6 +1,8 @@
 """Test runner API — стриминговый запуск pytest через SSE."""
 
 import asyncio
+import json
+import re
 import sys
 from pathlib import Path
 
@@ -39,9 +41,6 @@ async def run_tests_stream(request: Request):
     logger.info("tests_run_requested", user_id=payload.get("sub", "unknown"))
 
     async def event_stream():
-        import json
-        import re
-
         yield f"data: {json.dumps({'event': 'status', 'data': '⏳ Запуск pytest...'}, ensure_ascii=False)}\n\n"
 
         try:

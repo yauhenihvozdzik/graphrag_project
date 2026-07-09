@@ -60,23 +60,29 @@ cd graphrag_project
 
 ## Шаг 2: Настройка переменных окружения
 
-Файл `backend/.env` уже содержит настройки для разработки. Для production:
+Создайте файл `backend/.env` из шаблона:
 
 ```powershell
-# Скопируйте и отредактируйте
-copy backend\.env backend\.env.backup
+# Скопируйте шаблон
+copy backend\.env.example backend\.env
+```
+
+Шаблон `backend/.env.example` содержит все необходимые переменные с безопасными значениями по умолчанию для разработки. Для production:
+
+```powershell
+# Отредактируйте
 notepad backend\.env
 ```
 
 Обязательно измените:
-- `JWT_SECRET_KEY` — на случайный ключ длиной 32+ символов
+- `JWT_SECRET_KEY` — на случайный ключ (сгенерируйте: `openssl rand -hex 32`)
 - `NEO4J_PASSWORD` — на надёжный пароль
 - `POSTGRES_PASSWORD` — на надёжный пароль
 
-## Шаг 3: Запуск инфраструктуры
+## Шаг 3: Запуск всех сервисов (одной командой)
 
 ```powershell
-# Запуск всех сервисов
+# Запуск всех сервисов — полная автоинициализация
 docker compose up -d
 
 # Проверка статуса
@@ -85,65 +91,52 @@ docker compose ps
 
 Ожидаемый вывод — все сервисы в статусе `Up` или `healthy`.
 
+### Что происходит автоматически при `docker compose up`:
+
+1. **Infrastructure**: Neo4j, Qdrant, PostgreSQL, Ollama, MinIO — запускаются с healthcheck-ами
+2. **ollama-init**: Одноразовый сервис, дожидается готовности Ollama и загружает модели `qwen2.5:7b` (LLM) и `bge-m3` (embeddings)
+3. **backend**: Дожидается готовности **всех** зависимостей (включая `ollama-init`), затем при старте (lifespan):
+   - Выполняет миграции Alembic (PostgreSQL)
+   - Инициализирует схемы Neo4j (constraints + indexes)
+   - Инициализирует коллекции Qdrant
+   - Seed 8 отделов (Юридический, Исследования, Управление, …)
+   - Seed 3 демо-пользователей (admin, analyst, viewer)
+   - Загружает 4 демо-документа (юридические + регламент)
+   - Инициализирует LangGraph-агента и guardrails
+4. **frontend**: Дожидается healthcheck backend и становится доступным на `:3000`
+
+⏱ **Первичный запуск**: загрузка моделей Ollama может занять 10-30 минут. При последующих запусках — ~2-3 минуты.
+
 ### Проблемы с GPU (Ollama)
 
-Если нет NVIDIA GPU, отредактируйте `docker-compose.yml`:
+Если нет NVIDIA GPU, GPU-ускорение уже отключено в `docker-compose.yml` по умолчанию (секция `deploy` закомментирована). Ollama будет работать на CPU.
 
-```yaml
-# Удалите или закомментируйте секцию deploy у ollama:
-  ollama:
-    image: ollama/ollama:latest
-    # deploy:           # ← Закомментировать
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
-```
+Для включения GPU на Linux-хосте с NVIDIA — раскомментируйте секцию `deploy` у сервиса `ollama` в `docker-compose.yml`.
 
-## Шаг 4: Загрузка моделей Ollama
+> **Примечание**: Основная модель — `qwen2.5:7b` (мультиязычная, 29+ языков). При необходимости можно заменить на `t-lite:7b-q4_K_M` (T-lite-it-1.0, дообучена T-Bank для русского языка) — измените `OLLAMA_MODEL` в `backend/.env`.
+
+## Шаг 4: Ручная инициализация (опционально)
+
+Если требуется повторно проинициализировать данные или загрузить дополнительные датасеты:
 
 ```powershell
-# Подождите ~30 секунд после запуска ollama
-docker exec graphrag-ollama ollama pull t-lite:7b-q4_K_M
-docker exec graphrag-ollama ollama pull bge-m3
+# Повторное создание отделов
+python scripts\seed_departments.py
+
+# Повторное создание пользователей
+python scripts\seed_users.py
+
+# Загрузка демо-данных через API
+python scripts\load_datasets.py
 ```
 
-⏱ Загрузка моделей может занять 10-30 минут в зависимости от скорости интернета.
-
-> **Примечание**: Основная модель — `t-lite:7b-q4_K_M` (T-lite-it-1.0, дообучена T-Bank для русского языка). При необходимости можно заменить на `qwen2.5:7b` — измените `OLLAMA_MODEL` в `backend/.env`.
-
-## Шаг 5: Инициализация базы данных
-
+Индексы Neo4j при необходимости:
 ```powershell
-# Создание индексов и ограничений Neo4j
-docker exec graphrag-neo4j cypher-shell -u neo4j -p neo4j_password "CREATE CONSTRAINT entity_id IF NOT EXISTS FOR (e:Entity) REQUIRE e.entity_id IS UNIQUE;"
-docker exec graphrag-neo4j cypher-shell -u neo4j -p neo4j_password "CREATE CONSTRAINT document_id IF NOT EXISTS FOR (d:Document) REQUIRE d.document_id IS UNIQUE;"
+docker exec graphrag-neo4j cypher-shell -u neo4j -p neo4j_password "CREATE CONSTRAINT entity_id IF NOT EXISTS FOR (e:Entity) REQUIRE e.id IS UNIQUE;"
+docker exec graphrag-neo4j cypher-shell -u neo4j -p neo4j_password "CREATE CONSTRAINT document_id IF NOT EXISTS FOR (d:Document) REQUIRE d.id IS UNIQUE;"
 docker exec graphrag-neo4j cypher-shell -u neo4j -p neo4j_password "CREATE INDEX entity_name IF NOT EXISTS FOR (e:Entity) ON (e.name);"
 docker exec graphrag-neo4j cypher-shell -u neo4j -p neo4j_password "CREATE INDEX entity_type IF NOT EXISTS FOR (e:Entity) ON (e.entity_type);"
 docker exec graphrag-neo4j cypher-shell -u neo4j -p neo4j_password "CREATE INDEX chunk_clearance IF NOT EXISTS FOR (c:Chunk) ON (c.clearance_level);"
-```
-
-## Шаг 6: Создание пользователей и отделов
-
-```powershell
-# Убедитесь, что backend запущен и здоров
-curl http://localhost:8000/api/v1/health
-
-# Создание отделов
-python scripts\seed_departments.py
-
-# Создание демо-пользователей
-python scripts\seed_users.py
-```
-
-> **Примечание**: `seed_departments.py` создаёт 8 отделов: Все, Юридический, Исследования, Управление, Комплаенс, HR, Финансы, IT.
-
-## Шаг 7: Загрузка демо-данных (опционально)
-
-```powershell
-python scripts\load_datasets.py
 ```
 
 ## Шаг 8: Проверка
@@ -160,24 +153,34 @@ python scripts\load_datasets.py
 
 ---
 
-## Альтернатива: автоматическая инициализация
+## Автоматическая инициализация (рекомендуется)
 
-Вместо шагов 4–7 можно использовать скрипт инициализации (требуется Git Bash или WSL):
+**При `docker compose up` всё инициализируется автоматически** — ручные шаги не требуются.
+
+Однако если вы предпочитаете запускать сервисы пошагово (например, для отладки), используйте скрипт `scripts/init.sh` (требуется Git Bash или WSL):
 
 ```bash
 chmod +x scripts/init.sh
 ./scripts/init.sh
 ```
 
-Скрипт `init.sh` автоматически:
-1. Проверяет зависимости (docker, docker-compose, curl, python3)
-2. Создаёт `backend/.env` из шаблона
-3. Запускает инфраструктуру (neo4j, qdrant, postgres, ollama, jaeger, prometheus, grafana)
-4. Ожидает готовности сервисов
-5. Загружает модели: `t-lite:7b-q4_K_M` и `bge-m3`
-6. Создаёт индексы Neo4j
-7. Seed-пользователей
-8. Запускает backend и frontend
+Скрипт `init.sh` выполняет полный цикл инициализации:
+1. Проверяет зависимости (`docker`, `curl`, `python3`)
+2. Создаёт `backend/.env` из шаблона `backend/.env.example` (если отсутствует)
+3. Запускает инфраструктуру (`docker compose up -d neo4j qdrant postgres ollama jaeger prometheus grafana`)
+4. Ожидает готовности сервисов (health checks)
+5. Загружает модели Ollama: `qwen2.5:7b` и `bge-m3`
+6. Создаёт индексы и constraints Neo4j
+7. Запускает backend и frontend
+8. Ожидает готовности backend (health check)
+9. Seed отделов (`seed_departments.py`)
+10. Seed пользователей (`seed_users.py`)
+11. Загружает демо-датасеты (`load_datasets.py`)
+
+Для переопределения учётных данных администратора задайте переменные окружения перед запуском:
+```bash
+ADMIN_EMAIL="custom@example.com" ADMIN_PASSWORD="CustomPass123!" ./scripts/init.sh
+```
 
 ---
 
@@ -268,3 +271,4 @@ git pull origin main
 # Пересобрать и перезапустить
 docker compose build
 docker compose up -d
+```

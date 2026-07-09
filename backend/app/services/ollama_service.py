@@ -9,6 +9,7 @@ with an array of inputs, avoiding per-text HTTP overhead for long documents.
 """
 
 import asyncio
+import json
 import time
 from typing import Any, AsyncGenerator, Optional
 
@@ -75,7 +76,7 @@ class OllamaService:
             response.raise_for_status()
             async for line in response.aiter_lines():
                 if not line: continue
-                import json; data = json.loads(line)
+                data = json.loads(line)
                 content = data.get("message", {}).get("content", "")
                 if content: yield content
                 if data.get("done", False): break

@@ -1,6 +1,6 @@
 """Chat message model for persisting conversation history."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlmodel import Field, SQLModel
@@ -17,4 +17,4 @@ class ChatMessage(SQLModel, table=True):
     role: str = Field(max_length=20)
     content: str = Field(max_length=10000)
     sources: Optional[str] = Field(default=None)  # JSON string of sources
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

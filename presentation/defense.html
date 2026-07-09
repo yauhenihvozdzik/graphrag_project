@@ -341,13 +341,14 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #1A1A2E; }
 <div class="card flex-1 flex flex-col" style="border-top:3px solid #4ADE80">
 <div class="card-header" style="background:#1A3A2A"><i data-lucide="key-round" style="width:1.8rem;height:1.8rem;color:#4ADE80"></i><p class="font-space font-bold" style="font-size:1.3rem;color:#4ADE80">RBAC — трёхкомпонентный</p></div>
 <div class="card-body flex flex-col gap-3">
-<div class="pipeline-step"><p class="font-space font-bold" style="font-size:1.1rem;color:#F1FAEE">Роль</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">admin · analyst · viewer</p></div>
+<div class="pipeline-step"><p class="font-space font-bold" style="font-size:1.1rem;color:#F1FAEE">Роль</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">admin · analyst · viewer · auditor</p></div>
 <div class="pipeline-step"><p class="font-space font-bold" style="font-size:1.1rem;color:#F1FAEE">Отдел</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">legal · research · 8 отделов</p></div>
 <div class="pipeline-step"><p class="font-space font-bold" style="font-size:1.1rem;color:#F1FAEE">Уровень доступа</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">0=public · 1=internal · 2=conf · 3=secret</p></div>
 <p class="font-inter" style="font-size:1rem;color:#6B7B8B;margin-top:4px">Применение на 3 уровнях:</p>
-<p class="font-inter" style="font-size:1rem;color:#A8B8C8">1) API middleware (JWT claims)</p>
+<p class="font-inter" style="font-size:1rem;color:#A8B8C8">1) API middleware (JWT RS256 claims)</p>
 <p class="font-inter" style="font-size:1rem;color:#A8B8C8">2) Cypher WHERE (Neo4j)</p>
 <p class="font-inter" style="font-size:1rem;color:#A8B8C8">3) Qdrant payload filter</p>
+<p class="font-inter" style="font-size:1rem;color:#A8B8C8;margin-top:4px">4) Audit log — все действия записываются</p>
 <p class="font-inter font-bold" style="font-size:1.1rem;color:#4ADE80">Admin → bypass всех фильтров</p>
 </div>
 </div>

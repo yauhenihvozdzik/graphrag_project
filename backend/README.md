@@ -82,7 +82,7 @@ app/
 ### Docker Compose (рекомендуется)
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Локальная разработка
@@ -92,10 +92,10 @@ docker-compose up -d
 pip install -e ".[dev,otel]"
 
 # 2. Запуск внешних сервисов
-docker-compose up -d neo4j qdrant postgres jaeger
+docker compose up -d neo4j qdrant postgres jaeger
 
 # 3. Запуск Ollama с моделями
-ollama pull t-lite:7b-q4_K_M
+ollama pull qwen2.5:7b
 ollama pull bge-m3
 
 # 4. Запуск backend

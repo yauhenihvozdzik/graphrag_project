@@ -93,30 +93,18 @@ async def service_config(request: Request):
         base = f"{scheme}://{host}:{port}"
         return f"{base}{path}" if path else base
 
-    def _auto_login(url: str, user: str, pw: str) -> str:
-        """Embed credentials into URL for auto-login."""
-        import re
-        return re.sub(r"(https?://)(.+)", rf"\1{user}:{pw}@\2", url)
-
-    neo4j_browser = _browser_url(7474, "/browser/")
-
     return {
         "success": True,
         "services": {
             "neo4j": {
                 "label": "Neo4j Browser",
                 "description": "Графовая СУБД",
-                "browser_url": neo4j_browser,
-                "auto_login_url": _auto_login(neo4j_browser, settings.NEO4J_USER, settings.NEO4J_PASSWORD),
-                "user": settings.NEO4J_USER,
-                "password": settings.NEO4J_PASSWORD,
+                "browser_url": _browser_url(7474, "/browser/"),
             },
             "minio": {
                 "label": "MinIO Console",
                 "description": "S3-хранилище документов",
                 "browser_url": _browser_url(9001),
-                "user": settings.S3_ACCESS_KEY,
-                "password": settings.S3_SECRET_KEY,
             },
             "qdrant": {
                 "label": "Qdrant Dashboard",
@@ -147,8 +135,6 @@ async def service_config(request: Request):
                 "label": "Grafana",
                 "description": "Метрики и дашборды",
                 "browser_url": _browser_url(3001),
-                "user": "admin",
-                "password": "graphrag_admin",
             },
             "prometheus": {
                 "label": "Prometheus",
@@ -157,12 +143,8 @@ async def service_config(request: Request):
             },
             "pgadmin": {
                 "label": "pgAdmin",
-                "description": "Управление PostgreSQL (БД: postgres / postgres)",
+                "description": "Управление PostgreSQL",
                 "browser_url": _browser_url(5050),
-                "user": "admin@graphrag.com",
-                "password": "pgadmin",
-                "db_user": "postgres",
-                "db_password": "postgres",
             },
         },
     }

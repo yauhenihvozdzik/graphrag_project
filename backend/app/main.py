@@ -1,5 +1,6 @@
 """Main application entry point for GraphRAG platform backend."""
 
+import asyncio
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -36,7 +37,6 @@ async def _backfill_document_full_text():
             )
             records = await result.data()
             if not records:
-                logger.info("backfill_full_text_no_missing_docs")
                 return
             updated = 0
             for rec in records:
@@ -91,20 +91,24 @@ async def lifespan(app: FastAPI):
     # ── Run Alembic migrations (replaces raw SQLModel.create_all for safer concurrent deploys) ──
     try:
         from app.services.database import database_service
-        database_service.run_migrations()
+        await asyncio.to_thread(database_service.run_migrations)
     except Exception as e: logger.exception("db_migrations_failed", error=str(e))
     # Auto-seed departments on startup
     try:
-        _seed_departments()
+        await asyncio.to_thread(_seed_departments)
     except Exception as e: logger.exception("department_seed_failed", error=str(e))
     # Auto-seed demo users on startup
     try:
-        _seed_demo_users()
+        await asyncio.to_thread(_seed_demo_users)
     except Exception as e: logger.exception("demo_users_seed_failed", error=str(e))
+    # Auto-ingest demo datasets on startup (disabled for startup speed; run scripts/load_datasets.py manually)
+    # try:
+    #     await _seed_datasets()
+    # except Exception as e: logger.exception("datasets_seed_failed", error=str(e))
     # ── Seed default admin settings if empty ──
     try:
         from app.seed_admin_settings import seed_admin_settings
-        seed_admin_settings(database_service)
+        await asyncio.to_thread(seed_admin_settings, database_service)
     except Exception as e:
         logger.exception("admin_settings_seed_failed", error=str(e))
     # ── Initialise dynamic settings registry ──
@@ -154,8 +158,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Request-ID"],
     expose_headers=["X-Download-Source", "Content-Disposition"],
 )
 app.add_middleware(SecurityHeadersMiddleware)
@@ -245,6 +249,144 @@ def _seed_demo_users():
         created += 1
     if created:
         logger.info("demo_users_seeded", count=created)
+
+
+async def _seed_datasets():
+    """Auto-load sample datasets on first startup via internal ingestion pipeline.
+
+    Waits for Ollama models to be available, then ingests a set of demo
+    legal/company documents so the GraphRAG knowledge graph is non-empty
+    right after ``docker compose up``.
+    """
+    import asyncio
+
+    import httpx
+
+    from app.core.config import settings
+    from app.core.graphrag.document_ingestion import ingestion_service
+    from app.core.graphrag.entity_extraction import entity_extraction_service
+    from app.core.graphrag.graph_builder import graph_builder_service
+    from app.core.graphrag.vector_indexer import vector_indexer_service
+    from app.services.neo4j_service import neo4j_service
+    from app.services.ollama_service import ollama_service
+    from app.services.qdrant_service import qdrant_service
+
+    SAMPLE_DOCUMENTS = [
+        {
+            "title": "Гражданский кодекс РФ — Статья 1",
+            "text": (
+                "Гражданское законодательство основывается на признании равенства участников "
+                "регулируемых им отношений, неприкосновенности собственности, свободы договора, "
+                "недопустимости произвольного вмешательства кого-либо в частные дела, "
+                "необходимости беспрепятственного осуществления гражданских прав, обеспечения "
+                "восстановления нарушенных прав, их судебной защиты."
+            ),
+            "clearance_level": 0,
+            "department": "legal",
+        },
+        {
+            "title": "Трудовой кодекс РФ — Статья 2",
+            "text": (
+                "Исходя из общепризнанных принципов и норм международного права и в соответствии "
+                "с Конституцией Российской Федерации основными принципами правового регулирования "
+                "трудовых отношений и иных непосредственно связанных с ними отношений признаются: "
+                "свобода труда, включая право на труд, который каждый свободно выбирает или на "
+                "который свободно соглашается, право распоряжаться своими способностями к труду, "
+                "выбирать профессию и род деятельности."
+            ),
+            "clearance_level": 0,
+            "department": "legal",
+        },
+        {
+            "title": "Федеральный закон о персональных данных",
+            "text": (
+                "Настоящим Федеральным законом регулируются отношения, связанные с обработкой "
+                "персональных данных, осуществляемой федеральными органами государственной власти, "
+                "органами государственной власти субъектов Российской Федерации, иными "
+                "государственными органами, органами местного самоуправления, юридическими лицами, "
+                "физическими лицами с использованием средств автоматизации."
+            ),
+            "clearance_level": 2,
+            "department": "legal",
+        },
+        {
+            "title": "Внутренний регламент — Политика безопасности",
+            "text": (
+                "Доступ к конфиденциальным документам предоставляется только сотрудникам "
+                "с соответствующим уровнем допуска. Все операции с секретными материалами "
+                "должны быть зарегистрированы в журнале аудита. Передача документов за пределы "
+                "организации требует письменного разрешения руководителя отдела безопасности."
+            ),
+            "clearance_level": 3,
+            "department": "management",
+        },
+    ]
+
+    # ── Wait for Ollama models to be available ──
+    logger.info("seed_datasets_waiting_ollama")
+    for attempt in range(1, 31):
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(10.0)) as client:
+                resp = await client.get(f"{settings.OLLAMA_BASE_URL}/api/tags")
+                if resp.status_code == 200:
+                    models = [m["name"] for m in resp.json().get("models", [])]
+                    has_llm = any(settings.OLLAMA_MODEL in m for m in models)
+                    has_emb = any(settings.OLLAMA_EMBEDDING_MODEL in m for m in models)
+                    if has_llm and has_emb:
+                        logger.info("seed_datasets_ollama_ready", models=models)
+                        break
+        except Exception:
+            pass
+        logger.info("seed_datasets_ollama_waiting", attempt=attempt)
+        await asyncio.sleep(4)
+    else:
+        logger.warning("seed_datasets_ollama_not_ready_timeout", skipping=True)
+        return
+
+    # ── Ingest each document via internal pipeline ──
+    ingested = 0
+    for doc in SAMPLE_DOCUMENTS:
+        try:
+            doc_id, chunks, s3_key = await ingestion_service.ingest_text(
+                text=doc["text"],
+                title=doc["title"],
+                clearance_level=doc["clearance_level"],
+                department=doc["department"],
+            )
+            logger.info("seed_dataset_ingested", doc_id=doc_id, title=doc["title"], chunks=len(chunks))
+
+            extraction_results = await entity_extraction_service.extract_from_chunks(
+                chunks=chunks, ollama_service=None, use_llm=False,
+            )
+            logger.info("seed_dataset_entities_extracted", doc_id=doc_id, entities=sum(len(r.entities) for r in extraction_results))
+
+            await graph_builder_service.build_from_extraction(
+                document_id=doc_id,
+                title=doc["title"],
+                source="seed_datasets",
+                extraction_results=extraction_results,
+                chunks=chunks,
+                neo4j_service=neo4j_service,
+                clearance_level=doc["clearance_level"],
+                department=doc["department"],
+                metadata={},
+                s3_key=s3_key,
+            )
+
+            vectors_indexed = await vector_indexer_service.index_chunks(
+                chunks=chunks,
+                ollama_service=ollama_service,
+                qdrant_service=qdrant_service,
+                clearance_level=doc["clearance_level"],
+                department=doc["department"],
+            )
+            logger.info("seed_dataset_vectors_indexed", doc_id=doc_id, vectors=vectors_indexed)
+            ingested += 1
+        except Exception as e:
+            logger.exception("seed_dataset_failed", title=doc["title"], error=str(e))
+
+    if ingested:
+        logger.info("seed_datasets_completed", ingested=ingested, total=len(SAMPLE_DOCUMENTS))
 
 
 @app.get("/")

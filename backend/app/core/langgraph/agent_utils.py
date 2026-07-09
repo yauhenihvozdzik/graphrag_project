@@ -37,10 +37,6 @@ def build_system_prompt(context: str, graph_context_stats: dict = None) -> str:
     system_prompt = registry.get_system_prompt()
     context_header = registry.get("prompts", "context_header", CONTEXT_HEADER)
     no_context_msg = registry.get("prompts", "no_context_message", NO_CONTEXT_MESSAGE)
-    logger.info("build_system_prompt_debug",
-                system_prompt_preview=system_prompt[:80] if system_prompt else "None",
-                registry_keys=list(registry._settings.keys()))
-
     messages = [system_prompt]
     
     # Добавляем информацию о графе знаний для контекста

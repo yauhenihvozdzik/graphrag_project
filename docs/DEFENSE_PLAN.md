@@ -72,7 +72,7 @@ Dev tools:    Mailpit :8025, pgAdmin :5050, Open WebUI :3100
 
 | Компонент | Решение | Обоснование |
 |-----------|---------|-------------|
-| **LLM** | qwen2.5:7b / T-lite-it-1.0 (Q4_K_M, ~4.5 GB VRAM) | Баланс качества русского языка и экономии видеопамяти на целевом железе (RTX 4060 8 GB) |
+| **LLM** | qwen2.5:7b (Q4_K_M, ~4.5 GB VRAM) | Баланс качества русского языка и экономии видеопамяти на целевом железе (RTX 4060 8 GB) |
 | **Embedding** | bge-m3 (1024-dim, CPU inference) | 8192 токенов контекста, не конкурирует с LLM за GPU VRAM |
 | **LLM Serving** | Ollama | Windows native, overhead 0.5 GB (vs 1.5 GB у vLLM) |
 | **Vector DB** | Qdrant | Rust-based, payload filtering для RBAC прямо в HNSW-индексе |
@@ -163,7 +163,7 @@ PDF/DOCX/TXT/MD/ZIP → S3 (MinIO) одновременно с парсинго�
 
 | Компонент | Значения | Применение |
 |-----------|----------|------------|
-| **Роль (role)** | `admin`, `analyst`, `viewer` | Права на эндпоинты (middleware) |
+| **Роль (role)** | `admin`, `analyst`, `viewer`, `auditor` | Права на эндпоинты (middleware) |
 | **Отдел (department)** | `all`, `legal`, `research`, `management`, `compliance`, `hr`, `finance`, `it` | Фильтрация документов по принадлежности |
 | **Уровень доступа (clearance_level)** | 0=public, 1=internal, 2=confidential, 3=secret | Вертикальная иерархия доступа |
 
@@ -334,7 +334,7 @@ PDF/DOCX/TXT/MD/ZIP → S3 (MinIO) одновременно с парсинго�
 | Тестов | 64 (100% pass) |
 | Пользователей | 4 демо + регистрация |
 | Отделов | 8 |
-| Моделей Ollama | 2 (bge-m3 + qwen2.5:7b) |
+| Моделей Ollama | 2 (qwen2.5:7b + bge-m3) |
 | Уровней доступа | 4 (public, internal, confidential, secret) |
 | Сетевых сегментов | 2 (DMZ + Internal) |
 

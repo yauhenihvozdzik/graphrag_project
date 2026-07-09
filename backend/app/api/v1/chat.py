@@ -95,7 +95,7 @@ async def chat_stream(
             session.add(m)
             await session.commit()
     except Exception as e:
-        logger.warning(f"Chat cleanup error: {e}", exc_info=True)
+        logger.warning("chat_cleanup_error", error=str(e), exc_info=True)
 
     messages = [{"role": m.role, "content": m.content} for m in chat_request.messages]
     messages[-1]["content"] = guard_result.sanitized_text
@@ -118,7 +118,7 @@ async def chat_stream(
                     session.add(m)
                     await session.commit()
             except Exception as e:
-                logger.warning(f"Chat save assistant message error: {e}", exc_info=True)
+                logger.warning("chat_save_assistant_message_error", error=str(e), exc_info=True)
         except Exception as e:
             logger.exception("chat_stream_failed", error=str(e))
             yield f"data: {json.dumps({'event':'error','data':str(e)})}\n\n"

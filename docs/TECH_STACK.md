@@ -1,6 +1,4 @@
-<!-- AUDIT: updated 2026-07-08 -->
-
-# Технологический стек GraphRAG платформы
+# Технологический стек GraphRAG Platform
 
 > **Платформа**: GraphRAG для анализа корпоративных знаний (юридический домен)
 > **Целевое железо**: Ryzen 3900X (12C/24T) · RTX 4060 8 GB · 64 GB RAM · Windows 11 Pro
@@ -12,7 +10,7 @@
 
 | Компонент | Решение | Версия / Квантование | Ресурсы | ADR |
 |---|---|---|---|---|
-| **LLM** | T-lite-it-1.0 (7B) / Qwen 2.5 (7B) | Q4_K_M (Ollama) | ~6.5 GB VRAM (веса + KV-cache) | [ADR-001](adr/001-llm-model-selection.md) |
+| **LLM** | Qwen 2.5 (7B) / T-lite-it-1.0 (7B) | Q4_K_M (Ollama) | ~6.5 GB VRAM (веса + KV-cache) | [ADR-001](adr/001-llm-model-selection.md) |
 | **Embedding** | BAAI/bge-m3 | FP16 (1024-dim) | ~1.1 GB RAM (CPU inference) | [ADR-002](adr/002-embedding-model-selection.md) |
 | **LLM Serving** | Ollama | Latest | ~0.5 GB overhead | [ADR-003](adr/003-llm-serving-engine.md) |
 | **Vector DB** | Qdrant | Latest | ~1.5 GB RAM (500K vectors) | [ADR-004](adr/004-vector-database.md) |
@@ -33,8 +31,8 @@
 ┌──────────────────────────────────────────────────┐
 │                  RTX 4060 — 8 GB VRAM            │
 ├──────────────────────────────────────┬───────────┤
-│ T-lite 7B Q4_K_M / Qwen 2.5 7B     │  4.5 GB   │
-│ Q4_K_M (веса)                        │           │
+│ Qwen 2.5 7B / T-lite 7B Q4_K_M      │  4.5 GB   │
+│ (веса)                                │           │
 ├──────────────────────────────────────┼───────────┤
 │ KV-cache (авто, ctx 4096)            │  1.5 GB   │
 ├──────────────────────────────────────┼───────────┤
@@ -82,21 +80,21 @@
 
 ## Ключевые обоснования выбора
 
-### LLM: T-lite-it-1.0 (7B) — основная модель
-- **Русский язык**: дообучена T-Bank специально для русского языка, показывает лучшие результаты на русскоязычных бенчмарках среди 7B-моделей
+### LLM: Qwen 2.5 (7B) — основная модель
+- **Мультиязычность**: обучена на 29+ языках, включая русский, показывает уверенные результаты на русскоязычных текстах
 - **VRAM**: Q4_K_M (~4.5 GB) оставляет ~3.5 GB для KV-cache → контекст до 8K токенов
 - **Совместимость**: нативная поддержка Ollama, официальные GGUF
-- **Резервная модель**: Qwen 2.5 (7B) — обучена на 29+ языках, может быть использована как замена (изменить `OLLAMA_MODEL` в `backend/.env`)
+- **Резервная модель**: T-lite-it-1.0 (7B) — дообучена T-Bank для русского языка, лучшие результаты на русскоязычных бенчмарках среди 7B-моделей (изменить `OLLAMA_MODEL` в `backend/.env`)
 
 ### Embedding: bge-m3 (а не e5-large / rubert)
-- **Контекст 8192 токенов**: юридические документы без chunking
+- **Контекст 8192 токенов**: юридические документы без избыточного chunking
 - **Hybrid search**: dense + sparse embeddings в одном запросе (1024-dim)
 - **CPU inference**: не конкурирует с LLM за GPU VRAM
 
 ### Serving: Ollama (а не vLLM / SGLang / TGI)
 - **Windows native**: единственный вариант без Docker/WSL
 - **VRAM efficiency**: overhead 0.5 GB (vs 1.5 GB у vLLM)
-- **Простота**: `ollama pull t-lite:7b-q4_K_M && ollama serve`
+- **Простота**: `ollama pull qwen2.5:7b && ollama serve`
 
 ### Vector DB: Qdrant (а не Milvus / Weaviate)
 - **Rust-based**: минимальное потребление RAM
@@ -108,7 +106,7 @@
 - **Cypher**: мощный язык для юридических traversal-запросов
 - **Neo4j Browser**: визуализация графа для аналитиков
 
-### Orchestration: LangGraph (обязательное требование)
+### Orchestration: LangGraph
 - **Циклы**: iterative refinement ответов
 - **Checkpointing**: PostgreSQL-based через langgraph-checkpoint-postgres
 - **Экосистема**: langchain-community, langchain-core
@@ -116,7 +114,7 @@
 ### Object Storage: MinIO
 - **S3-совместимый**: стандартный API для хранения документов
 - **Локальное развёртывание**: не требует облачных сервисов
-- **Deduplication**: хранение оригиналов и извлечённого текста
+- **Дедупликация**: хранение оригиналов и извлечённого текста, детекция по SHA-256
 
 ---
 
@@ -124,7 +122,7 @@
 
 | Компонент | Назначение | Порт |
 |---|---|---|
-| **PostgreSQL 16** | Пользователи, сессии, LangGraph checkpoints | 5432 |
+| **PostgreSQL 16** | Пользователи, сессии, LangGraph checkpoints, аудит, настройки, RBAC-политики | 5432 |
 | **MinIO** | S3-хранилище документов | 9000 (API), 9001 (Console) |
 | **Mailpit** | Перехват email (dev) | 1025 (SMTP), 8025 (Web UI) |
 | **pgAdmin** | GUI для PostgreSQL | 5050 |
@@ -142,7 +140,7 @@
 
 ---
 
-## Python-зависимости (основные и планируемые)
+## Python-зависимости
 
 ```toml
 [project]
@@ -160,6 +158,8 @@ dependencies = [
 
     # ── Database ──
     "sqlmodel>=0.0.21",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "asyncpg>=0.29.0",
     "psycopg2-binary>=2.9.0",
     "psycopg[binary]>=3.2.0",
     "psycopg-pool>=3.2.0",
@@ -199,25 +199,23 @@ dependencies = [
     # ── Rate Limiting ──
     "aiolimiter>=1.1.0",
 
-    # ── Tracing (otel extras) ──
-    "opentelemetry-api>=1.25.0",
-    "opentelemetry-sdk>=1.25.0",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.25.0",
-    "opentelemetry-instrumentation-fastapi>=0.46b0",
+    # ── Migrations ──
+    "alembic>=1.14.0",
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.23.0",
-    "httpx>=0.27.0",
-    "ruff>=0.4.0",
-]
 otel = [
     "opentelemetry-api>=1.25.0",
     "opentelemetry-sdk>=1.25.0",
     "opentelemetry-exporter-otlp-proto-grpc>=1.25.0",
     "opentelemetry-instrumentation-fastapi>=0.46b0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-timeout>=2.3.0",
+    "httpx>=0.27.0",
+    "ruff>=0.4.0",
 ]
 ```
 
@@ -227,9 +225,9 @@ otel = [
 
 | Фаза | Триггер | Изменения |
 |---|---|---|
-| **MVP** | Старт проекта | Текущий стек |
+| **Текущий** | Старт проекта | Текущий стек |
 | **Scale** | 5+ пользователей | Ollama → vLLM (Docker), добавить Redis для кэширования |
-| **GPU Upgrade** | ≥16 GB VRAM | T-lite 7B → Qwen 2.5-14B Q4_K_M, vLLM с continuous batching |
+| **GPU Upgrade** | ≥16 GB VRAM | Qwen 2.5 7B → 14B Q4_K_M, vLLM с continuous batching |
 | **Enterprise** | Требование HA | Neo4j Enterprise (clustering), Qdrant distributed mode |
 | **Multi-GPU** | 2× GPU | Tensor parallelism через vLLM, больший контекст |
 
@@ -237,7 +235,7 @@ otel = [
 
 ## Список ADR документов
 
-1. [ADR-001: Выбор LLM модели](adr/001-llm-model-selection.md) — T-lite-it-1.0 (7B) GGUF Q4_K_M (основная), Qwen 2.5 (7B) резервная
+1. [ADR-001: Выбор LLM модели](adr/001-llm-model-selection.md) — Qwen 2.5 (7B) GGUF Q4_K_M (основная), T-lite-it-1.0 (7B) резервная
 2. [ADR-002: Выбор Embedding модели](adr/002-embedding-model-selection.md) — BAAI/bge-m3 (1024-dim)
 3. [ADR-003: Выбор LLM Serving Engine](adr/003-llm-serving-engine.md) — Ollama
 4. [ADR-004: Выбор Vector Database](adr/004-vector-database.md) — Qdrant

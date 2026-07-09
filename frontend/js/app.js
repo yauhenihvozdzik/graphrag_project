@@ -1071,7 +1071,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     URL.revokeObjectURL(url);
                 } catch (logErr) {
                     // Non-critical — don't interrupt the flow
-                    console.warn('Failed to generate upload log', logErr);
                 }
 
                 // Финальный статус

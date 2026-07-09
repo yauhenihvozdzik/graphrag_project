@@ -108,7 +108,7 @@ class Neo4jService:
                 graph_query_duration_seconds.observe(time.time()-start)
                 return {"nodes":rec["nodes"],"edges":rec["edges"]} if rec else {"nodes":[],"edges":[]}
         except Exception as e:
-            logger.warning(f"get_entity_neighborhood fallback: {e}")
+            logger.warning("get_entity_neighborhood_fallback", error=str(e))
             return await self._fallback(entity_name, depth, limit, rbac_filter, rbac_params)
 
     async def _fallback(self, entity_name: str, depth: int, limit: int, rbac_filter: str, rbac_params: Optional[dict] = None) -> dict:
