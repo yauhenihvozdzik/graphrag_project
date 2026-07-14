@@ -55,6 +55,29 @@ class NodeAccessPolicy(BaseModel):
 class RBACService:
     """Service for checking node-level access permissions."""
 
+    @staticmethod
+    def require_role(context: "AccessContext", required_role: Role) -> None:
+        """Check that the user has at least the required role.
+
+        Args:
+            context: User's access context.
+            required_role: Minimum required role.
+
+        Raises:
+            HTTPException(403): If user's role is insufficient.
+        """
+        from fastapi import HTTPException
+
+        if context.role == Role.ADMIN:
+            return  # Admin always passes
+        role_level = RBACService.ROLE_HIERARCHY.get(context.role, 0)
+        required_level = RBACService.ROLE_HIERARCHY.get(required_role, 0)
+        if role_level < required_level:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Недостаточно прав. Требуется роль: {required_role.value}",
+            )
+
     # Role hierarchy: higher roles inherit lower role access
     ROLE_HIERARCHY: dict[Role, int] = {
         Role.ADMIN: 100,

@@ -3,8 +3,9 @@
 Aggregates all sub-routers for the GraphRAG platform endpoints.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
+from app.api.v1.admin import router as admin_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.chat import router as chat_router
 from app.api.v1.ingest import router as ingest_router
@@ -23,6 +24,7 @@ api_router.include_router(ingest_router, prefix="", tags=["ingest"])
 api_router.include_router(graph_router, prefix="/graph", tags=["graph"])
 api_router.include_router(tests_router, prefix="/tests", tags=["tests"])
 api_router.include_router(departments_router, prefix="/departments", tags=["departments"])
+api_router.include_router(admin_router, prefix="", tags=["admin"])
 
 
 @api_router.get("/health", response_model=HealthResponse)
@@ -69,23 +71,34 @@ async def health_check():
 
 
 @api_router.get("/config/services")
-async def service_config():
-    """Return service connection info (URLs, credentials) for frontend integration."""
-    from app.core.config import settings
+async def service_config(request: Request):
+    """Return service connection info (URLs, credentials) for frontend integration.
 
-    def _host_to_localhost(url: str) -> str:
-        """Replace Docker hostnames with localhost for browser access."""
-        import re
-        return re.sub(r"://[^:/]+:", "://localhost:", url)
+    Browser URLs are built from the incoming request's Host header automatically —
+    no manual PUBLIC_HOST configuration needed. Falls back to PUBLIC_HOST env var
+    (default 'localhost') only when the header is missing.
+    """
+    from app.core.config import settings
+    from starlette.requests import Request as StarletteRequest  # noqa: F811 — for IDE type hints
+
+    # Auto-detect host from request headers (works behind reverse proxies too)
+    host: str = (
+        (request.headers.get("X-Forwarded-Host") or "").split(":")[0]
+        or request.headers.get("Host", "").split(":")[0]
+        or settings.PUBLIC_HOST
+    )
+
+    def _browser_url(port: int, path: str = "", scheme: str = "http") -> str:
+        """Build a browser-accessible URL for the given port and path."""
+        base = f"{scheme}://{host}:{port}"
+        return f"{base}{path}" if path else base
 
     def _auto_login(url: str, user: str, pw: str) -> str:
         """Embed credentials into URL for auto-login."""
         import re
         return re.sub(r"(https?://)(.+)", rf"\1{user}:{pw}@\2", url)
 
-    neo4j_browser = _host_to_localhost(
-        settings.NEO4J_URI.replace("bolt://", "http://").replace(":7687", ":7474") + "/browser/"
-    )
+    neo4j_browser = _browser_url(7474, "/browser/")
 
     return {
         "success": True,
@@ -101,51 +114,51 @@ async def service_config():
             "minio": {
                 "label": "MinIO Console",
                 "description": "S3-хранилище документов",
-                "browser_url": "http://localhost:9001",
+                "browser_url": _browser_url(9001),
                 "user": settings.S3_ACCESS_KEY,
                 "password": settings.S3_SECRET_KEY,
             },
             "qdrant": {
                 "label": "Qdrant Dashboard",
                 "description": "Векторная СУБД",
-                "browser_url": f"http://localhost:{settings.QDRANT_PORT}/dashboard/",
+                "browser_url": _browser_url(settings.QDRANT_PORT, "/dashboard/"),
             },
             "ollama": {
                 "label": "Ollama API",
                 "description": "LLM-сервер",
-                "base_url": _host_to_localhost(settings.OLLAMA_BASE_URL),
+                "base_url": _browser_url(11434),
             },
             "openwebui": {
                 "label": "Open WebUI",
                 "description": "Веб-интерфейс Ollama",
-                "browser_url": "http://localhost:3100",
+                "browser_url": _browser_url(3100),
             },
             "mailpit": {
                 "label": "Mailpit",
                 "description": "Перехватчик email",
-                "browser_url": "http://localhost:8025",
+                "browser_url": _browser_url(8025),
             },
             "jaeger": {
                 "label": "Jaeger UI",
                 "description": "Трассировка запросов",
-                "browser_url": "http://localhost:16686",
+                "browser_url": _browser_url(16686),
             },
             "grafana": {
                 "label": "Grafana",
                 "description": "Метрики и дашборды",
-                "browser_url": "http://localhost:3001",
+                "browser_url": _browser_url(3001),
                 "user": "admin",
                 "password": "graphrag_admin",
             },
             "prometheus": {
                 "label": "Prometheus",
                 "description": "Сбор метрик",
-                "browser_url": "http://localhost:9090",
+                "browser_url": _browser_url(9090),
             },
             "pgadmin": {
                 "label": "pgAdmin",
                 "description": "Управление PostgreSQL (БД: postgres / postgres)",
-                "browser_url": "http://localhost:5050",
+                "browser_url": _browser_url(5050),
                 "user": "admin@graphrag.com",
                 "password": "pgadmin",
                 "db_user": "postgres",

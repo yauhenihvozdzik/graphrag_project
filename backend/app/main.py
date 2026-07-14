@@ -1,12 +1,14 @@
 """Main application entry point for GraphRAG platform backend."""
 
+import asyncio
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 from app.api.v1.api import api_router
 from app.core.config import settings
@@ -18,6 +20,48 @@ from app.core.middleware import (
 from app.core.observability import instrument_fastapi, setup_opentelemetry
 
 load_dotenv()
+
+
+async def _backfill_document_full_text():
+    """One-time backfill: assemble full_text for existing documents from their chunks."""
+    try:
+        from app.services.neo4j_service import neo4j_service
+    except Exception:
+        return
+    try:
+        async with neo4j_service.session() as s:
+            # Найти документы без full_text
+            result = await s.run(
+                "MATCH (d:Document) WHERE d.full_text IS NULL OR d.full_text = '' "
+                "RETURN d.id AS doc_id, d.title AS title"
+            )
+            records = await result.data()
+            if not records:
+                logger.info("backfill_full_text_no_missing_docs")
+                return
+            updated = 0
+            for rec in records:
+                doc_id = rec["doc_id"]
+                # Собрать текст из чанков
+                cr = await s.run(
+                    "MATCH (d:Document {id: $doc_id})<-[:PART_OF]-(c:Chunk) "
+                    "RETURN c.text AS text ORDER BY c.position",
+                    doc_id=doc_id,
+                )
+                chunks = await cr.data()
+                if chunks:
+                    full_text = "\n\n".join(
+                        c["text"] for c in chunks if c.get("text") and c["text"].strip()
+                    )
+                    if full_text:
+                        await s.run(
+                            "MATCH (d:Document {id: $doc_id}) SET d.full_text = $full_text",
+                            doc_id=doc_id, full_text=full_text,
+                        )
+                        updated += 1
+            logger.info("backfill_full_text_completed", missing=len(records), updated=updated)
+    except Exception as e:
+        logger.exception("backfill_full_text_failed", error=str(e))
 
 
 @asynccontextmanager
@@ -42,21 +86,42 @@ async def lifespan(app: FastAPI):
     try:
         from app.core.langgraph.memory import graphrag_memory; await graphrag_memory.initialize()
     except Exception as e: logger.exception("graphrag_memory_init_failed", error=str(e))
+    # ── Run Alembic migrations (replaces raw SQLModel.create_all for safer concurrent deploys) ──
     try:
-        from sqlmodel import SQLModel
-        from app.models.message import ChatMessage
         from app.services.database import database_service
-        SQLModel.metadata.create_all(database_service.engine)
-        logger.info("chat_message_table_created")
-    except Exception as e: logger.exception("chat_message_table_failed", error=str(e))
+        await asyncio.to_thread(database_service.run_migrations)
+    except Exception as e: logger.exception("db_migrations_failed", error=str(e))
     # Auto-seed departments on startup
     try:
-        _seed_departments()
+        await asyncio.to_thread(_seed_departments)
     except Exception as e: logger.exception("department_seed_failed", error=str(e))
     # Auto-seed demo users on startup
     try:
-        _seed_demo_users()
+        await asyncio.to_thread(_seed_demo_users)
     except Exception as e: logger.exception("demo_users_seed_failed", error=str(e))
+    # ── Seed default admin settings if empty ──
+    try:
+        from app.seed_admin_settings import seed_admin_settings
+        await asyncio.to_thread(seed_admin_settings, database_service)
+    except Exception as e:
+        logger.exception("admin_settings_seed_failed", error=str(e))
+    # ── Initialise dynamic settings registry ──
+    try:
+        from app.core.settings_registry import SettingsRegistry
+        settings_registry = SettingsRegistry()
+        await settings_registry.initialize()
+        logger.info("settings_registry_initialised")
+    except Exception as e: logger.exception("settings_registry_init_failed", error=str(e))
+    # ── Reload guardrails config from registry ──
+    try:
+        from app.core.security.guardrails import guardrails_service
+        guardrails_service.reload_config()
+        logger.info("guardrails_config_initialised")
+    except Exception as e: logger.exception("guardrails_config_init_failed", error=str(e))
+    # Backfill full_text for existing documents from chunks
+    try:
+        await _backfill_document_full_text()
+    except Exception as e: logger.exception("backfill_full_text_failed", error=str(e))
     yield
     logger.info("application_shutdown_started")
     try:
@@ -142,7 +207,10 @@ def _seed_departments():
 
 
 def _seed_demo_users():
-    """Seed demo users (admin, analyst, viewer) if not present."""
+    """Seed demo users (admin, analyst, viewer) if not present.
+
+    Uses specific exception handling for uniqueness violations instead of bare except.
+    """
     from app.services.database import database_service
     demo_users = [
         ("admin@graphrag.local", "Admin123!", "admin", "admin", "all", 3),
@@ -156,8 +224,14 @@ def _seed_demo_users():
             continue
         try:
             u = database_service.create_user(email=email, password=password, username=username)
-        except Exception:
-            # Race condition — user already created between check and insert
+        except HTTPException as e:
+            if e.status_code == 409:
+                logger.info("demo_user_already_exists", email=email)
+                continue
+            raise
+        except IntegrityError:
+            # Race condition — duplicate key between check and insert
+            logger.info("demo_user_integrity_race", email=email)
             continue
         database_service.update_user(user_id=u.id, updates={
             "role": role,

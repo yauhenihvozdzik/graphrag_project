@@ -1,6 +1,11 @@
-"""API эндпоинты загрузки документов."""
+"""API эндпоинты загрузки документов.
 
-import shutil
+Fix #5: synchronous file I/O (open/write/fsync) now delegates to
+asyncio.to_thread, preventing event-loop blocking on large file uploads.
+"""
+
+import asyncio
+import os
 import uuid
 from pathlib import Path
 
@@ -8,7 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 
 from app.api.v1.auth import get_access_context, get_current_user
 from app.core.config import settings
-from app.core.prompts import ALLOWED_FILE_EXTENSIONS
+from app.core.constants import ALLOWED_FILE_EXTENSIONS
 from app.core.graphrag.document_ingestion import ingestion_service
 from app.core.graphrag.entity_extraction import entity_extraction_service
 from app.core.graphrag.graph_builder import graph_builder_service
@@ -30,6 +35,31 @@ def _create_status(doc_id: str, title: str, total_steps: int) -> dict:
     return {"document_id": doc_id, "title": title, "status": "processing", "step": 0,
             "step_name": "starting", "total_steps": total_steps, "chunks_count": 0,
             "entities_count": 0, "vectors_count": 0, "message": "Начало обработки...", "error": None}
+
+
+async def _cleanup_failed_document(doc_id: str) -> None:
+    """Remove a partially ingested document from Neo4j, Qdrant, and S3 on pipeline failure."""
+    try:
+        async with neo4j_service.session() as s:
+            await s.run(
+                "MATCH (d:Document {id: $doc_id}) "
+                "OPTIONAL MATCH (d)<-[:PART_OF]-(c:Chunk) "
+                "OPTIONAL MATCH (c)<-[:MENTIONED_IN]-(e:Entity) "
+                "DETACH DELETE e, c, d",
+                doc_id=doc_id
+            )
+    except Exception as e:
+        logger.warning("cleanup_neo4j_failed", doc_id=doc_id, error=str(e))
+    try:
+        await qdrant_service.delete_by_document(doc_id)
+    except Exception as e:
+        logger.warning("cleanup_qdrant_failed", doc_id=doc_id, error=str(e))
+    try:
+        from app.services.s3_service import s3_service
+        s3_service.delete_document(doc_id)
+    except Exception as e:
+        logger.warning("cleanup_s3_failed", doc_id=doc_id, error=str(e))
+    logger.info("failed_document_cleaned_up", doc_id=doc_id)
 
 
 async def _run_ingestion_pipeline(doc_id: str, text: str, title: str, source: str,
@@ -69,6 +99,11 @@ async def _run_ingestion_pipeline(doc_id: str, text: str, title: str, source: st
     except Exception as e:
         if file_meta_id:
             database_service.update_file_metadata(meta_id=file_meta_id, document_id=doc_id, status="failed")
+        # Rollback: remove partially created document from Neo4j
+        try:
+            await _cleanup_failed_document(doc_id)
+        except Exception as ce:
+            logger.warning("cleanup_failed_document_failed", doc_id=doc_id, error=str(ce))
         status["status"] = "failed"; status["error"] = str(e); status["message"] = f"Ошибка: {str(e)}"
         documents_ingested_total.labels(status="failed").inc()
         logger.exception("bg_ingestion_failed", document_id=doc_id, error=str(e))
@@ -106,8 +141,23 @@ async def ingest_text(request: Request, background_tasks: BackgroundTasks, inges
     return IngestStatusResponse(document_id=doc_id, status="processing")
 
 
+async def _save_upload_file(file: UploadFile, file_path: Path) -> None:
+    """Save uploaded file to disk in a thread-pool to avoid blocking the event loop."""
+    def _sync_write() -> None:
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(file_path, "wb") as f:
+            # Read file content in the main thread, write in thread-pool
+            f.write(file.file.read())
+            f.flush()
+            os_fsync = getattr(os, 'fsync', None)
+            if os_fsync:
+                os_fsync(f.fileno())
+
+    await asyncio.to_thread(_sync_write)
+
+
 @router.post("/ingest/file", response_model=IngestStatusResponse)
-async def ingest_file(request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...),
+async def ingest_file(request: Request, file: UploadFile = File(...),
                       title: str = Form(""), clearance_level: int = Form(0), department: str = Form("all"),
                       current_user=Depends(get_current_user), access_context=Depends(get_access_context)):
     if access_context.role not in (Role.ADMIN, Role.ANALYST): raise HTTPException(403, "Недостаточно прав")
@@ -115,6 +165,10 @@ async def ingest_file(request: Request, background_tasks: BackgroundTasks, file:
     title = title or file.filename or "Без названия"
     if file_ext not in ALLOWED_FILE_EXTENSIONS and file_ext != ".zip":
         raise HTTPException(400, f"Неподдерживаемый формат: {file_ext}")
+    
+    # Проверка на нулевой размер файла — не загружаем пустые файлы
+    if file.size is not None and file.size == 0:
+        raise HTTPException(400, "Файл имеет нулевой размер. Загрузка пустых файлов не поддерживается.")
 
     # Check for duplicate by file metadata (name + size)
     file_size = file.size or 0
@@ -129,10 +183,7 @@ async def ingest_file(request: Request, background_tasks: BackgroundTasks, file:
     doc_id = f"doc_{uuid.uuid4().hex[:12]}"
     file_path = upload_dir / f"{doc_id}{file_ext}"
     try:
-        with open(file_path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
-            f.flush()
-            import os; os.fsync(f.fileno()) if hasattr(os, 'fsync') else None
+        await _save_upload_file(file, file_path)
     except Exception as e:
         database_service.update_file_metadata(meta_id=file_meta.id, document_id="", status="failed")
         raise HTTPException(500, f"Ошибка сохранения: {str(e)}")
@@ -167,12 +218,16 @@ async def ingest_file(request: Request, background_tasks: BackgroundTasks, file:
             logger.info("bg_file_ingestion_completed", document_id=doc_id)
         except Exception as e:
             database_service.update_file_metadata(meta_id=file_meta.id, document_id=doc_id, status="failed")
+            # Rollback: remove partially created document from Neo4j + S3
+            try:
+                await _cleanup_failed_document(doc_id)
+            except Exception as ce:
+                logger.warning("cleanup_failed_document_failed", doc_id=doc_id, error=str(ce))
             _ingestion_status[doc_id]["status"] = "failed"; _ingestion_status[doc_id]["error"] = str(e); _ingestion_status[doc_id]["message"] = f"Ошибка: {str(e)}"
             documents_ingested_total.labels(status="failed").inc(); logger.exception("bg_file_ingestion_failed", document_id=doc_id, error=str(e))
         finally:
             if file_path.exists(): file_path.unlink()
 
-    import asyncio
     # Verify file exists before starting pipeline
     if not file_path.exists():
         logger.error("file_not_found_after_save", path=str(file_path))
@@ -221,6 +276,11 @@ async def ingest_url_json(
             _ingestion_status[doc_id]["status"] = "completed"; _ingestion_status[doc_id]["message"] = f"Загружено: {len(chunks)} фрагментов"
             logger.info("bg_url_ingestion_completed", document_id=doc_id)
         except Exception as e:
+            # Rollback: remove partially created document from Neo4j + S3
+            try:
+                await _cleanup_failed_document(doc_id)
+            except Exception as ce:
+                logger.warning("cleanup_failed_document_failed", doc_id=doc_id, error=str(ce))
             _ingestion_status[doc_id]["status"] = "failed"; _ingestion_status[doc_id]["error"] = str(e); _ingestion_status[doc_id]["message"] = f"Ошибка: {str(e)}"
             documents_ingested_total.labels(status="failed").inc(); logger.exception("bg_url_ingestion_failed", document_id=doc_id, error=str(e))
 

@@ -24,16 +24,21 @@ class GraphBuilderService:
         # Индекс чанков по chunk_id для быстрого доступа к тексту
         chunk_map = {c.chunk_id: c for c in chunks} if chunks else {}
 
-        # 1. Создаём узел документа с S3-ключом
+        # 1. Создаём узел документа с S3-ключом и полным текстом
         # Read s3_original_key and original_filename from chunk metadata
         first_chunk = chunks[0] if chunks else None
         chunk_meta = first_chunk.metadata if first_chunk else {}
         original_key = (metadata or {}).get("s3_original_key", "") or chunk_meta.get("s3_original_key", "")
         original_filename = (metadata or {}).get("original_filename", "") or chunk_meta.get("original_filename", "") or title
+        
+        # Assemble full text from ALL chunks for reliable downloads
+        full_text = "\n\n".join(c.text for c in chunks if c and c.text) if chunks else ""
+        
         await neo4j_service.create_document_node(
             doc_id=document_id, title=title, source=source,
             metadata=metadata or {}, clearance_level=clearance_level, department=department,
             s3_key=s3_key, s3_original_key=original_key, original_filename=original_filename,
+            full_text=full_text,
         )
         logger.info("graph_document_node_created", document_id=document_id)
 

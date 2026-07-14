@@ -98,14 +98,38 @@ def _collect_gpu_metrics():
 
 
 def setup_metrics(app):
-    """Set up Prometheus metrics endpoint."""
-    try:
-        from starlette_prometheus import metrics, PrometheusMiddleware
+    """Set up Prometheus metrics endpoint with custom middleware (no starlette-prometheus)."""
+    import time as _time
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.requests import Request
+    from starlette.responses import Response
 
-        app.add_middleware(PrometheusMiddleware)
-        app.add_route("/metrics", metrics)
-    except ImportError:
-        from app.core.logging import logger
+    class _PrometheusMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            start = _time.time()
+            response = await call_next(request)
+            duration = _time.time() - start
+            # Normalise route path: strip path params
+            route = request.scope.get("route")
+            endpoint = route.path if route and hasattr(route, "path") else request.url.path
+            http_requests_total.labels(
+                method=request.method,
+                endpoint=endpoint,
+                status=str(response.status_code),
+            ).inc()
+            http_request_duration_seconds.labels(
+                method=request.method,
+                endpoint=endpoint,
+            ).observe(duration)
+            return response
 
-        logger.warning("starlette_prometheus_not_installed")
+    # ── Attach /metrics endpoint ──
+    async def _metrics_endpoint(_request: Request) -> Response:
+        data = generate_latest()
+        return Response(content=data, media_type=CONTENT_TYPE_LATEST)
+
+    app.add_middleware(_PrometheusMiddleware)
+    app.add_route("/metrics", _metrics_endpoint, methods=["GET"])
+
     _collect_gpu_metrics()

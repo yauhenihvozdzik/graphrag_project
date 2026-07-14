@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Защищенная платформа GraphRAG — Бизнес-презентация</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk&family=Inter&display=swap');
+.font-space { font-family: 'Space Grotesk', 'Century Gothic', Arial, sans-serif; }
+.font-inter { font-family: 'Inter', Arial, 'Helvetica Neue', sans-serif; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #1A1A2E; }
+#presentation { width: 100vw; height: 100vh; overflow: hidden; position: relative; }
+#slides-track { display: flex; height: 100%; transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+.slide { min-width: 100vw; width: 100vw; height: 100vh; flex-shrink: 0; overflow: hidden; position: relative; }
+.slide-inner { width: 100%; height: 100%; overflow: hidden; }
+.nav-hint { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100;
+  display: flex; gap: 16px; align-items: center; background: rgba(26, 26, 46, 0.85);
+  border: 1px solid #2A2F4A; border-radius: 40px; padding: 8px 24px; backdrop-filter: blur(8px); transition: opacity 0.6s; }
+.nav-hint.hidden { opacity: 0; pointer-events: none; }
+.nav-hint span { font-family: 'Inter', Arial, sans-serif; font-size: 0.9rem; color: #A8B8C8; }
+.nav-hint .key { display: inline-block; background: #232742; border: 1px solid #4FC3F7; border-radius: 6px;
+  padding: 3px 10px; font-family: monospace; font-size: 0.85rem; color: #4FC3F7; margin: 0 3px; }
+.nav-hint .page-indicator { font-family: 'Space Grotesk', sans-serif; font-size: 1rem; color: #F1FAEE; min-width: 60px; text-align: center; }
+.card { background: #232742; border-radius: 16px; overflow: hidden; }
+.card-top { padding: 16px 24px; }
+.card-body { padding: 24px; }
+.tag { display: inline-block; padding: 6px 16px; border-radius: 20px; border: 1px solid #4FC3F7; color: #4FC3F7; font-size: 0.95rem; }
+.stat { background: #232742; border-radius: 12px; padding: 20px; text-align: center; }
+.gradient-title { background: linear-gradient(135deg, #4FC3F7, #4ADE80); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+</style>
+</head>
+<body>
+<div id="presentation">
+<div id="slides-track">
+
+<!-- SLIDE 1: Титул -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-row" style="background:#1A1A2E">
+<div class="flex flex-col justify-center px-20 gap-10" style="flex:5">
+<p class="font-inter text-2xl tracking-widest font-bold" style="color:#4ADE80">ГРАФОВЫЙ ИНТЕЛЛЕКТ ДЛЯ БИЗНЕСА</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3.2rem;color:#F1FAEE">Построение защищенной платформы<br>мультимодального анализа корпоративных знаний<br>с использованием графовых подходов</h1>
+<h2 class="font-space font-bold" style="font-size:2.2rem;color:#4FC3F7">Гибридный GraphRAG · On-Premise · 152-ФЗ</h2>
+<div class="flex flex-row gap-4 flex-wrap mt-4">
+<div class="tag">Без облаков</div><div class="tag">152-ФЗ ready</div><div class="tag">On-Premise</div>
+</div>
+<p class="font-inter" style="font-size:1.2rem;color:#A8B8C8;margin-top:8px">Юридические департаменты · Комплаенс · Банки · Промышленность</p>
+</div>
+<div style="width:4px; background:#4ADE80; flex:none"></div>
+<div class="flex-none overflow-hidden flex items-center justify-center" style="flex:4;background:linear-gradient(135deg,#1A1A2E,#1A3A2A)">
+<div class="text-center">
+<p class="font-space font-bold" style="font-size:4rem;color:#4ADE80">Graph</p>
+<p class="font-space font-bold" style="font-size:2.5rem;color:#4FC3F7;margin-top:-8px">RAG</p>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 2: Проблема -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-12 pb-6">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.2rem;color:#FD652D">ПРОБЛЕМА</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3rem;color:#F1FAEE">Сотрудники тратят до 30% времени<br>на поиск информации</h1>
+</div>
+<div class="flex flex-row gap-8 px-20 flex-1 min-h-0 pb-12">
+<div class="card flex-1 flex flex-col" style="border-top:3px solid #FD652D">
+<div class="card-body flex flex-col gap-4">
+<i data-lucide="search" style="width:2.5rem;height:2.5rem;color:#FD652D"></i>
+<h2 class="font-space font-bold" style="font-size:1.8rem;color:#F1FAEE">Информационный хаос</h2>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Тысячи PDF, DOCX, приказов, регламентов в разных папках и системах. Найти нужный документ — часы ручного поиска.</p>
+</div>
+</div>
+<div class="card flex-1 flex flex-col" style="border-top:3px solid #FFC300">
+<div class="card-body flex flex-col gap-4">
+<i data-lucide="clock" style="width:2.5rem;height:2.5rem;color:#FFC300"></i>
+<h2 class="font-space font-bold" style="font-size:1.8rem;color:#F1FAEE">Долгие ответы</h2>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Юрист или аналитик тратит 2–3 часа на ответ по одному вопросу. За год это сотни человеко-часов.</p>
+</div>
+</div>
+<div class="card flex-1 flex flex-col" style="border-top:3px solid:#4ADE80">
+<div class="card-body flex flex-col gap-4">
+<i data-lucide="shield-alert" style="width:2.5rem;height:2.5rem;color:#4ADE80"></i>
+<h2 class="font-space font-bold" style="font-size:1.8rem;color:#F1FAEE">Облачные ИИ под запретом</h2>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">OpenAI, ChatGPT — данные уходят вовне. 152-ФЗ запрещает загружать персональные данные в облачные сервисы.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 3: Почему сейчас -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-12 pb-4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.2rem;color:#FD652D">ВОЗМОЖНОСТЬ</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:2.8rem;color:#F1FAEE">Рынок созрел: три драйвера</h1>
+</div>
+<div class="flex flex-row gap-8 px-20 flex-1 min-h-0 items-center pb-12">
+<div class="card flex-1" style="border-top:3px solid #FD652D">
+<div class="card-body flex flex-col gap-3 items-center text-center">
+<i data-lucide="file-text" style="width:3rem;height:3rem;color:#FD652D"></i>
+<p class="font-space font-bold" style="font-size:1.6rem;color:#F1FAEE">Регуляторное давление</p>
+<p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">152-ФЗ, 98-ФЗ требуют изоляции данных. Штрафы до 6 млн ₽ за утечку. Бизнес ищет on-premise ИИ-решения.</p>
+</div>
+</div>
+<div class="card flex-1" style="border-top:3px solid #FFC300">
+<div class="card-body flex flex-col gap-3 items-center text-center">
+<i data-lucide="cpu" style="width:3rem;height:3rem;color:#FFC300"></i>
+<p class="font-space font-bold" style="font-size:1.6rem;color:#F1FAEE">Доступность железа</p>
+<p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">RTX 4060 за $299 запускает LLM уровня GPT-3.5 локально. Не нужен дата-центр — хватает офисного ПК.</p>
+</div>
+</div>
+<div class="card flex-1" style="border-top:3px solid:#4ADE80">
+<div class="card-body flex flex-col gap-3 items-center text-center">
+<i data-lucide="brain" style="width:3rem;height:3rem;color:#4ADE80"></i>
+<p class="font-space font-bold" style="font-size:1.6rem;color:#F1FAEE">Зрелость LLM</p>
+<p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">Qwen 2.5, T-lite — открытые модели с качеством русского языка на уровне коммерческих аналогов.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 4: Решение -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-12 pb-6">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.2rem;color:#4ADE80">РЕШЕНИЕ</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3.2rem;color:#F1FAEE">GraphRAG: спросил — получил ответ</h1>
+</div>
+<div class="flex flex-row gap-8 px-20 flex-1 min-h-0 pb-12">
+<div class="flex flex-col gap-5" style="flex:3">
+<div class="card" style="border-left:4px solid #4FC3F7">
+<div class="card-body flex flex-col gap-2">
+<p class="font-space font-bold" style="font-size:1.5rem;color:#4FC3F7">Загрузите документы</p>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">PDF, DOCX, сканы — всё, что уже есть в компании. Система сама разберёт, свяжет и проиндексирует.</p>
+</div></div>
+<div class="card" style="border-left:4px solid #4ADE80">
+<div class="card-body flex flex-col gap-2">
+<p class="font-space font-bold" style="font-size:1.5rem;color:#4ADE80">Задайте вопрос на русском</p>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">«Какие требования 152-ФЗ к хранению данных клиентов?» — система найдёт точный ответ, со ссылкой на документ.</p>
+</div></div>
+<div class="card" style="border-left:4px solid #FFC300">
+<div class="card-body flex flex-col gap-2">
+<p class="font-space font-bold" style="font-size:1.5rem;color:#FFC300">Получите ответ за секунды</p>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Не часы поиска, а секунды. Ответ со ссылкой на исходный документ — для аудита и комплаенс.</p>
+</div></div>
+</div>
+<div class="card flex flex-col" style="flex:2">
+<div class="card-body flex flex-col gap-4 items-center justify-center text-center">
+<div class="flex flex-row gap-6 justify-center">
+<div class="stat"><p class="font-space font-bold" style="font-size:3rem;color:#FD652D">до 30%</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">экономия времени<br>сотрудников</p></div>
+<div class="stat"><p class="font-space font-bold" style="font-size:3rem;color:#4FC3F7">100%</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">данные внутри<br>компании</p></div>
+</div>
+<div class="flex flex-row gap-6 justify-center">
+<div class="stat"><p class="font-space font-bold" style="font-size:3rem;color:#4ADE80">×10</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">быстрее ручного<br>поиска</p></div>
+<div class="stat"><p class="font-space font-bold" style="font-size:3rem;color:#FFC300">₽0</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">внешних API<br>подписок</p></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 5: Как это работает -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-12 pb-4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.2rem;color:#4ADE80">ПРОЦЕСС</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:2.8rem;color:#F1FAEE">От документа к ответу — автоматически</h1>
+</div>
+<div class="flex flex-row px-20 flex-1 min-h-0 pb-12 items-center gap-4">
+<div class="stat flex-1"><p class="font-space font-bold" style="font-size:1.4rem;color:#4FC3F7">📄 Загрузка</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8;margin-top:8px">Система читает PDF, DOCX, TXT и сохраняет в защищённое хранилище S3</p></div>
+<div style="font-size:2rem;color:#6B7B8B">→</div>
+<div class="stat flex-1"><p class="font-space font-bold" style="font-size:1.4rem;color:#4ADE80">🧠 Анализ</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8;margin-top:8px">Извлекает сущности — законы, статьи, организации. Строит граф связей между ними</p></div>
+<div style="font-size:2rem;color:#6B7B8B">→</div>
+<div class="stat flex-1"><p class="font-space font-bold" style="font-size:1.4rem;color:#FFC300">🔍 Поиск</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8;margin-top:8px">Семантический поиск + графовые связи = точный ответ, а не просто список документов</p></div>
+<div style="font-size:2rem;color:#6B7B8B">→</div>
+<div class="stat flex-1"><p class="font-space font-bold" style="font-size:1.4rem;color:#FD652D">✅ Ответ</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8;margin-top:8px">Текст со ссылками на источники. Каждый ответ проверяем — никаких выдумок</p></div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 6: Безопасность -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-12 pb-6">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.2rem;color:#4ADE80">БЕЗОПАСНОСТЬ</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3.2rem;color:#F1FAEE">Три уровня защиты данных</h1>
+</div>
+<div class="flex flex-row gap-8 px-20 flex-1 min-h-0 pb-12">
+<div class="card flex-1" style="border-top:3px solid #4ADE80">
+<div class="card-body flex flex-col gap-4">
+<i data-lucide="building" style="width:2.5rem;height:2.5rem;color:#4ADE80"></i>
+<h2 class="font-space font-bold" style="font-size:1.8rem;color:#F1FAEE">Изоляция данных</h2>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Система работает полностью на вашем сервере. Ни один запрос не уходит в интернет. Никаких OpenAI, Anthropic, облаков.</p>
+<p class="font-inter font-bold" style="font-size:1.2rem;color:#4ADE80">Соответствует 152-ФЗ и 98-ФЗ</p>
+</div>
+</div>
+<div class="card flex-1" style="border-top:3px solid #FFC300">
+<div class="card-body flex flex-col gap-4">
+<i data-lucide="key-round" style="width:2.5rem;height:2.5rem;color:#FFC300"></i>
+<h2 class="font-space font-bold" style="font-size:1.8rem;color:#F1FAEE">Ролевой доступ</h2>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Аналитик видит документы своего отдела. Руководитель — все. Гость — только открытые. Доступ ограничен на уровне базы данных.</p>
+<p class="font-inter font-bold" style="font-size:1.2rem;color:#FFC300">4 уровня доступа · 8 отделов · аудит действий</p>
+</div>
+</div>
+<div class="card flex-1" style="border-top:3px solid #FD652D">
+<div class="card-body flex flex-col gap-4">
+<i data-lucide="shield-check" style="width:2.5rem;height:2.5rem;color:#FD652D"></i>
+<h2 class="font-space font-bold" style="font-size:1.8rem;color:#F1FAEE">Защита контента</h2>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Автоматическое маскирование паспортов, ИНН, СНИЛС, телефонов в запросах и ответах. Блокировка попыток взлома модели.</p>
+<p class="font-inter font-bold" style="font-size:1.2rem;color:#FD652D">PII-фильтрация · Prompt Injection · Аудит</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 7: Рынок -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-12 pb-6">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.2rem;color:#FD652D">РЫНОК</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:2.6rem;color:#F1FAEE">Кому это нужно?</h1>
+</div>
+<div class="flex flex-row gap-6 px-20 flex-1 min-h-0 pb-12">
+<div class="card flex-1" style="border-top:3px solid #4FC3F7">
+<div class="card-body flex flex-col gap-2 text-center">
+<i data-lucide="landmark" style="width:3rem;height:3rem;color:#4FC3F7;margin:0 auto"></i>
+<p class="font-space font-bold" style="font-size:1.6rem;color:#F1FAEE">Банки и финорганизации</p>
+<p class="font-inter" style="font-size:1.2rem;color:#A8B8C8;margin-top:8px">Комплаенс 115-ФЗ, внутренние политики, анализ регуляторных требований</p>
+<p class="font-inter font-bold" style="font-size:1.1rem;color:#A8B8C8;margin-top:12px">~400 банков РФ</p>
+</div>
+</div>
+<div class="card flex-1" style="border-top:3px solid #4ADE80">
+<div class="card-body flex flex-col gap-2 text-center">
+<i data-lucide="scale" style="width:3rem;height:3rem;color:#4ADE80;margin:0 auto"></i>
+<p class="font-space font-bold" style="font-size:1.6rem;color:#F1FAEE">Юридические фирмы</p>
+<p class="font-inter" style="font-size:1.2rem;color:#A8B8C8;margin-top:8px">Анализ судебной практики, договоров, поиск прецедентов</p>
+<p class="font-inter font-bold" style="font-size:1.1rem;color:#A8B8C8;margin-top:12px">~30 000 юрлиц</p>
+</div>
+</div>
+<div class="card flex-1" style="border-top:3px solid #FFC300">
+<div class="card-body flex flex-col gap-2 text-center">
+<i data-lucide="factory" style="width:3rem;height:3rem;color:#FFC300;margin:0 auto"></i>
+<p class="font-space font-bold" style="font-size:1.6rem;color:#F1FAEE">Промышленность</p>
+<p class="font-inter" style="font-size:1.2rem;color:#A8B8C8;margin-top:8px">ТУ, регламенты, нормативная база, сертификация</p>
+<p class="font-inter font-bold" style="font-size:1.1rem;color:#A8B8C8;margin-top:12px">ГОСТы, СНИПы, отраслевые стандарты</p>
+</div>
+</div>
+<div class="card flex-1" style="border-top:3px solid #FD652D">
+<div class="card-body flex flex-col gap-2 text-center">
+<i data-lucide="shield" style="width:3rem;height:3rem;color:#FD652D;margin:0 auto"></i>
+<p class="font-space font-bold" style="font-size:1.6rem;color:#F1FAEE">Госсектор</p>
+<p class="font-inter" style="font-size:1.2rem;color:#A8B8C8;margin-top:8px">Ведомственные приказы, законодательство, межведомственные запросы</p>
+<p class="font-inter font-bold" style="font-size:1.1rem;color:#A8B8C8;margin-top:12px">Импортозамещение ИИ</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 8: Конкуренты -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-12 pb-4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.2rem;color:#FD652D">КОНКУРЕНТЫ</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:2.8rem;color:#F1FAEE">Чем мы отличаемся</h1>
+</div>
+<div class="flex flex-row gap-8 px-20 flex-1 min-h-0 pb-12">
+<div class="card flex-1 overflow-hidden" style="border-top:3px solid #FD652D">
+<div class="card-body flex flex-col gap-2">
+<p class="font-space font-bold" style="font-size:1.5rem;color:#FD652D">Облачные RAG</p>
+<p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">OpenAI, Anthropic, Cohere</p>
+<div class="mt-4 flex flex-col gap-2">
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">❌ Данные уходят вовне</p>
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">❌ Нельзя для ПДн</p>
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">❌ $0.01–0.05 за запрос</p>
+</div>
+</div>
+</div>
+<div class="card flex-1 overflow-hidden" style="border-top:3px solid #FFC300">
+<div class="card-body flex flex-col gap-2">
+<p class="font-space font-bold" style="font-size:1.5rem;color:#FFC300">Локальные LLM</p>
+<p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">Ollama + любой UI</p>
+<div class="mt-4 flex flex-col gap-2">
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">✅ Данные локально</p>
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">❌ Нет поиска по документам</p>
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">❌ Галлюцинации без опоры на факты</p>
+</div>
+</div>
+</div>
+<div class="card flex-1 overflow-hidden" style="border-top:3px solid:#4ADE80">
+<div class="card-body flex flex-col gap-2">
+<p class="font-space font-bold" style="font-size:1.5rem;color:#4ADE80">Наша платформа</p>
+<p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">GraphRAG On-Premise</p>
+<div class="mt-4 flex flex-col gap-2">
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">✅ Данные локально</p>
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">✅ Ответы со ссылками на документы</p>
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">✅ Ролевой доступ на уровне данных</p>
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">✅ 0 ₽ за запрос после установки</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 9: Бизнес-модель -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-12 pb-6">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.2rem;color:#4ADE80">БИЗНЕС-МОДЕЛЬ</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3rem;color:#F1FAEE">Установка + поддержка</h1>
+</div>
+<div class="flex flex-row gap-8 px-20 flex-1 min-h-0 pb-12">
+<div class="card flex-1" style="border-top:3px solid #4FC3F7">
+<div class="card-body flex flex-col gap-3 text-center">
+<i data-lucide="hard-drive" style="width:2.5rem;height:2.5rem;color:#4FC3F7;margin:0 auto"></i>
+<p class="font-space font-bold" style="font-size:1.5rem;color:#F1FAEE">Лицензия на установку</p>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Единоразовая установка на сервер заказчика. Включает настройку ролей, загрузку начального пакета документов и обучение сотрудников.</p>
+</div>
+</div>
+<div class="card flex-1" style="border-top:3px solid #4ADE80">
+<div class="card-body flex flex-col gap-3 text-center">
+<i data-lucide="refresh-cw" style="width:2.5rem;height:2.5rem;color:#4ADE80;margin:0 auto"></i>
+<p class="font-space font-bold" style="font-size:1.5rem;color:#F1FAEE">Годовая поддержка</p>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Обновления моделей, патчи безопасности, мониторинг 24/7, обучение сотрудников, доработка под специфику заказчика.</p>
+</div>
+</div>
+<div class="card flex-1" style="border-top:3px solid #FFC300">
+<div class="card-body flex flex-col gap-3 text-center">
+<i data-lucide="wrench" style="width:2.5rem;height:2.5rem;color:#FFC300;margin:0 auto"></i>
+<p class="font-space font-bold" style="font-size:1.5rem;color:#F1FAEE">Кастомизация</p>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Доработка под отраслевую специфику: свои типы сущностей, интеграция с SAP/1С/СЭД, fine-tuning моделей.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 10: Roadmap -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-12 pb-6">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.2rem;color:#4ADE80">ROADMAP</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:2.8rem;color:#F1FAEE">План развития</h1>
+</div>
+<div class="flex flex-col gap-4 px-20 flex-1 min-h-0 pb-12 justify-center">
+<div class="flex flex-row items-stretch gap-4">
+<div class="card flex-1" style="border-top:3px solid #4ADE80"><div class="card-body"><p class="font-space font-bold" style="font-size:1.4rem;color:#4ADE80">Q1-Q2 2025 — Запуск</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8;margin-top:8px">• Пилот в 1-2 компаниях<br>• Сбор обратной связи<br>• Доработка UX</p></div></div>
+<div class="card flex-1" style="border-top:3px solid #4FC3F7"><div class="card-body"><p class="font-space font-bold" style="font-size:1.4rem;color:#4FC3F7">Q3 2025 — Масштаб</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8;margin-top:8px">• Интеграция с 1С/СЭД<br>• Мульти-тенантность<br>• Redis-кэширование</p></div></div>
+<div class="card flex-1" style="border-top:3px solid #FFC300"><div class="card-body"><p class="font-space font-bold" style="font-size:1.4rem;color:#FFC300">Q4 2025 — Продукт</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8;margin-top:8px">• Reranker для точности<br>• Fine-tuned модель под РФ<br>• Коробочная версия</p></div></div>
+<div class="card flex-1" style="border-top:3px solid #FD652D"><div class="card-body"><p class="font-space font-bold" style="font-size:1.4rem;color:#FD652D">2026 — Экспансия</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8;margin-top:8px">• SaaS-версия (ЗГТ-сегмент)<br>• Отраслевые решения<br>• Партнёрская сеть</p></div></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 11: ROI -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-12 pb-6">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.2rem;color:#4ADE80">ЭКОНОМИКА</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:2.8rem;color:#F1FAEE">Окупаемость за 3-6 месяцев</h1>
+</div>
+<div class="flex flex-row gap-6 px-20 flex-1 min-h-0 pb-12">
+<div class="flex flex-col gap-6 flex-1 justify-center">
+<div class="card"><div class="card-body flex flex-row items-center gap-6"><i data-lucide="users" style="width:2rem;height:2rem;color:#4FC3F7;flex-shrink:0"></i><div><p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">10 сотрудников × 3 часа/день поиска</p><p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">= 30 часов/день. При ставке 1000 ₽/час = <span style="color:#FD652D">30 000 ₽/день</span></p></div></div></div>
+<div class="card"><div class="card-body flex flex-row items-center gap-6"><i data-lucide="calculator" style="width:2rem;height:2rem;color:#4ADE80;flex-shrink:0"></i><div><p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">× 22 рабочих дня = 660 000 ₽/мес</p><p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">Экономия времени с платформой: <span style="color:#4ADE80">60-80%</span></p></div></div></div>
+<div class="card"><div class="card-body flex flex-row items-center gap-6"><i data-lucide="trending-up" style="width:2rem;height:2rem;color:#FFC300;flex-shrink:0"></i><div><p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">Экономия: 400 000 – 530 000 ₽/мес</p><p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">Окупаемость лицензии (500 000 ₽) за <span style="color:#FFC300">1-1.5 месяца</span></p></div></div></div>
+</div>
+<div class="card flex flex-col" style="flex:1;border-top:3px solid #4ADE80">
+<div class="card-body flex flex-col gap-4 items-center justify-center text-center">
+<p class="font-space font-bold" style="font-size:1.6rem;color:#F1FAEE">Дополнительные выгоды</p>
+<div class="flex flex-col gap-4 mt-4">
+<p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">✅ Снижение штрафов за нарушение 152-ФЗ</p>
+<p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">✅ Ускорение комплаенс-проверок</p>
+<p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">✅ Снижение нагрузки на юрдепартамент</p>
+<p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">✅ Аудит-трейл для регуляторов</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 12: Итог -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-row" style="background:#1A1A2E">
+<div class="flex flex-col justify-center px-20 gap-8" style="flex:4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.3rem;color:#4ADE80">ИТОГ</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3rem;color:#F1FAEE">Ваши документы —<br>ваш интеллект.<br>Без компромиссов.</h1>
+<div class="flex flex-col gap-4 mt-4">
+<div class="flex flex-row items-center gap-3"><i data-lucide="server" style="width:2rem;height:2rem;color:#4ADE80"></i><p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Установка на вашем сервере за 1 день</p></div>
+<div class="flex flex-row items-center gap-3"><i data-lucide="shield-check" style="width:2rem;height:2rem;color:#4ADE80"></i><p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Полное соответствие 152-ФЗ из коробки</p></div>
+<div class="flex flex-row items-center gap-3"><i data-lucide="zap" style="width:2rem;height:2rem;color:#4ADE80"></i><p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Запуск за 1 час: загрузили документы — получили ответы</p></div>
+<div class="flex flex-row items-center gap-3"><i data-lucide="wallet" style="width:2rem;height:2rem;color:#4ADE80"></i><p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Ноль внешних API = ноль скрытых платежей</p></div>
+</div>
+</div>
+<div style="width:4px; background:#4ADE80; flex:none"></div>
+<div class="flex-none overflow-hidden flex items-center justify-center" style="flex:3;background:linear-gradient(135deg,#1A3A2A,#0E1424)">
+<div class="text-center px-12">
+<p class="font-space font-bold" style="font-size:2rem;color:#A8B8C8">Свяжитесь с нами</p>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8;margin-top:24px">Демо-доступ · Пилотный проект · Партнёрство</p>
+</div>
+</div>
+</div>
+</div>
+
+</div><!-- /#slides-track -->
+
+<div class="nav-hint" id="navHint">
+<span>←</span><span class="key">←</span>
+<span class="page-indicator" id="pageIndicator">1 / 12</span>
+<span class="key">→</span><span>→</span>
+</div>
+</div>
+
+<script>
+(function() {
+const track = document.getElementById('slides-track');
+const hint = document.getElementById('navHint');
+const indicator = document.getElementById('pageIndicator');
+const totalSlides = 12;
+let currentSlide = 0;
+let hintTimer = null;
+function goToSlide(i) {
+if (i < 0) i = 0; if (i >= totalSlides) i = totalSlides - 1;
+currentSlide = i;
+track.style.transform = `translateX(-${currentSlide * 100}vw)`;
+indicator.textContent = `${currentSlide + 1} / ${totalSlides}`;
+hint.classList.remove('hidden');
+if (hintTimer) clearTimeout(hintTimer);
+hintTimer = setTimeout(() => hint.classList.add('hidden'), 3000);
+}
+document.addEventListener('keydown', e => {
+if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); goToSlide(currentSlide + 1); }
+else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); goToSlide(currentSlide - 1); }
+else if (e.key === 'Home') { e.preventDefault(); goToSlide(0); }
+else if (e.key === 'End') { e.preventDefault(); goToSlide(totalSlides - 1); }
+});
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+const diff = touchStartX - e.changedTouches[0].clientX;
+if (Math.abs(diff) > 50) goToSlide(diff > 0 ? currentSlide + 1 : currentSlide - 1);
+});
+lucide.createIcons();
+})();
+</script>
+</body>
+</html>

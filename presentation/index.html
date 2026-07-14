@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GraphRAG Platform — Презентация</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk&family=Inter&family=JetBrains+Mono&display=swap');
+.font-space { font-family: 'Space Grotesk', 'Century Gothic', Arial, sans-serif; }
+.font-inter { font-family: 'Inter', Arial, 'Helvetica Neue', sans-serif; }
+.font-mono { font-family: 'JetBrains Mono', 'Courier New', monospace; }
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #1A1A2E; }
+
+#presentation {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+#slides-track {
+  display: flex;
+  height: 100%;
+  transition: transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform;
+}
+
+.slide {
+  min-width: 100vw;
+  width: 100vw;
+  height: 100vh;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Navigation hint */
+.nav-hint {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  background: rgba(26, 26, 46, 0.85);
+  border: 1px solid #2A2F4A;
+  border-radius: 40px;
+  padding: 8px 24px;
+  backdrop-filter: blur(8px);
+  transition: opacity 0.6s;
+}
+.nav-hint.hidden { opacity: 0; pointer-events: none; }
+.nav-hint span {
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 0.9rem;
+  color: #A8B8C8;
+}
+.nav-hint .key {
+  display: inline-block;
+  background: #232742;
+  border: 1px solid #4FC3F7;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: #4FC3F7;
+  margin: 0 3px;
+}
+.nav-hint .page-indicator {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem;
+  color: #F1FAEE;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* Slide-specific styles from original files */
+
+/* Slide 4 (architecture) */
+.svc-box { background:#232742; border:1px solid #4FC3F7; border-radius:8px; padding:10px 14px; text-align:center; }
+.infra-box { background:#232742; border:1px solid #6B7B8B; border-radius:8px; padding:8px 12px; text-align:center; }
+.actor-box { background:#2A2F4A; border:1px solid #A8B8C8; border-radius:8px; padding:8px 16px; text-align:center; }
+
+/* Slide 6 (pipeline) */
+.stage { background:#232742; border:1px solid #4FC3F7; border-radius:10px; padding:16px 20px; display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
+
+/* Slide 7 (langgraph) */
+.node { background:#232742; border:1px solid #4FC3F7; border-radius:8px; padding:8px 16px; text-align:center; }
+.node-yellow { border-color:#FFC300; }
+.node-green { border-color:#4ADE80; }
+.node-orange { border-color:#FD652D; }
+.node-gray { border-color:#6B7B8B; }
+
+/* Responsive scaling for slide content that uses fixed sizes */
+.slide-inner {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Scale 1920x1080 content to fit viewport */
+@media (min-aspect-ratio: 16/9) {
+  .slide-inner.scaled {
+    width: calc(100vh * 16 / 9);
+    height: 100vh;
+    margin: 0 auto;
+  }
+}
+@media (max-aspect-ratio: 16/9) {
+  .slide-inner.scaled {
+    width: 100vw;
+    height: calc(100vw * 9 / 16);
+    margin: auto 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* Fade bullets for slide 8 example */
+.fade-demo { opacity: 1; transition: opacity 0.3s; }
+</style>
+</head>
+<body>
+
+<div id="presentation">
+  <div id="slides-track">
+
+    <!-- ===== SLIDE 1 ===== -->
+    <div class="slide">
+      <div class="slide-inner scaled relative overflow-hidden flex flex-row" style="background:#1A1A2E">
+        <div class="flex flex-col justify-center px-24 gap-8" style="flex:5; background:#1A1A2E">
+          <p class="font-inter text-2xl tracking-widest font-bold" style="color:#FD652D">ВЫПУСКНАЯ КВАЛИФИКАЦИОННАЯ РАБОТА · 2025</p>
+          <h1 class="font-space font-bold leading-tight" style="font-size:4.5rem; color:#F1FAEE">Защищённая платформа<br>мультимодального анализа<br>корпоративных знаний</h1>
+          <h2 class="font-space font-bold" style="font-size:2.8rem; color:#A8B8C8">на основе GraphRAG</h2>
+          <div class="flex flex-row gap-4 flex-wrap mt-2">
+            <div class="px-5 py-2 rounded-full border font-inter" style="border-color:#4FC3F7;color:#4FC3F7;font-size:1.4rem"><p>GraphRAG</p></div>
+            <div class="px-5 py-2 rounded-full border font-inter" style="border-color:#4FC3F7;color:#4FC3F7;font-size:1.4rem"><p>LangGraph</p></div>
+            <div class="px-5 py-2 rounded-full border font-inter" style="border-color:#4FC3F7;color:#4FC3F7;font-size:1.4rem"><p>RBAC</p></div>
+            <div class="px-5 py-2 rounded-full border font-inter" style="border-color:#4FC3F7;color:#4FC3F7;font-size:1.4rem"><p>On-Premise</p></div>
+          </div>
+        </div>
+        <div style="width:4px; background:#FD652D; flex:none"></div>
+        <div class="flex-none overflow-hidden" style="flex:4">
+          <img src="https://cdn.abacus.ai/images/13b92483-7d60-4d20-ad0d-fbc3ff12bf0e.png" class="w-full h-full object-cover" alt="Knowledge Graph">
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SLIDE 2 ===== -->
+    <div class="slide">
+      <div class="slide-inner scaled relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+        <div class="px-20 pt-14 pb-6">
+          <p class="font-inter font-bold tracking-widest" style="font-size:1.4rem;color:#FD652D">02 · ПРОБЛЕМАТИКА</p>
+          <h1 class="font-space font-bold leading-tight" style="font-size:3.5rem;color:#F1FAEE">Три барьера на пути корпоративного ИИ</h1>
+        </div>
+        <div class="flex flex-row gap-10 px-20 pb-16 flex-1 min-h-0">
+          <div class="flex flex-col flex-1 min-w-0 overflow-hidden rounded-xl" style="background:#232742">
+            <div class="flex flex-row items-center gap-4 px-8 py-5" style="background:#FD652D">
+              <i data-lucide="brain" style="width:2.2rem;height:2.2rem;color:#1A1A2E"></i>
+              <p class="font-space font-bold" style="font-size:1.5rem;color:#1A1A2E">01</p>
+            </div>
+            <div class="flex flex-col gap-4 p-8 flex-1">
+              <h2 class="font-space font-bold" style="font-size:2.2rem;color:#F1FAEE">Галлюцинации LLM</h2>
+              <p class="font-space font-bold" style="font-size:3.5rem;color:#FD652D">до 27%</p>
+              <p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">некорректных ответов в enterprise-RAG</p>
+              <p class="font-inter" style="font-size:1.5rem;color:#A8B8C8">Стандартные LLM генерируют правдоподобный, но фактически неверный контент без опоры на источники.</p>
+            </div>
+          </div>
+          <div class="flex flex-col flex-1 min-w-0 overflow-hidden rounded-xl" style="background:#232742">
+            <div class="flex flex-row items-center gap-4 px-8 py-5" style="background:#FFC300">
+              <i data-lucide="unlink" style="width:2.2rem;height:2.2rem;color:#1A1A2E"></i>
+              <p class="font-space font-bold" style="font-size:1.5rem;color:#1A1A2E">02</p>
+            </div>
+            <div class="flex flex-col gap-4 p-8 flex-1">
+              <h2 class="font-space font-bold" style="font-size:2.2rem;color:#F1FAEE">Потеря контекста в vector-RAG</h2>
+              <p class="font-inter font-bold" style="font-size:2.5rem;color:#FFC300">chunks ≠ knowledge</p>
+              <p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">семантический поиск рвёт связи между сущностями</p>
+              <p class="font-inter" style="font-size:1.5rem;color:#A8B8C8">Документы режутся на чанки, и модель теряет глобальные зависимости между фактами и сущностями.</p>
+            </div>
+          </div>
+          <div class="flex flex-col flex-1 min-w-0 overflow-hidden rounded-xl" style="background:#232742">
+            <div class="flex flex-row items-center gap-4 px-8 py-5" style="background:#4ADE80">
+              <i data-lucide="shield-alert" style="width:2.2rem;height:2.2rem;color:#1A1A2E"></i>
+              <p class="font-space font-bold" style="font-size:1.5rem;color:#1A1A2E">03</p>
+            </div>
+            <div class="flex flex-col gap-4 p-8 flex-1">
+              <h2 class="font-space font-bold" style="font-size:2.2rem;color:#F1FAEE">Безопасность корп. данных</h2>
+              <p class="font-inter font-bold" style="font-size:2.2rem;color:#4ADE80">PII + prompt injection</p>
+              <p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">утечки и атаки на LLM-системы</p>
+              <p class="font-inter" style="font-size:1.5rem;color:#A8B8C8">Облачные LLM недопустимы для банков и промышленности — нужен on-premise + контроль доступа на уровне знаний.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SLIDE 3 ===== -->
+    <div class="slide">
+      <div class="slide-inner scaled relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+        <div class="px-20 pt-12 pb-4">
+          <p class="font-inter font-bold tracking-widest" style="font-size:1.4rem;color:#FD652D">03 · РЕШЕНИЕ</p>
+          <h1 class="font-space font-bold leading-tight" style="font-size:3.2rem;color:#F1FAEE">Нейро-символический подход + защита по умолчанию</h1>
+        </div>
+        <div class="flex flex-row items-stretch gap-4 px-16 flex-1 min-h-0 pb-8">
+          <div class="flex flex-col flex-1 min-w-0 overflow-hidden rounded-xl" style="background:#232742">
+            <div class="w-full py-3 flex items-center justify-center" style="background:#4FC3F7">
+              <i data-lucide="network" style="width:2rem;height:2rem;color:#1A1A2E"></i>
+            </div>
+            <div class="flex flex-col gap-3 p-8 flex-1">
+              <p class="font-inter" style="font-size:1.3rem;color:#4FC3F7">01</p>
+              <h2 class="font-space font-bold" style="font-size:2.8rem;color:#F1FAEE">GraphRAG</h2>
+              <p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">Knowledge Graph + Vector</p>
+              <p class="font-inter" style="font-size:1.5rem;color:#A8B8C8;margin-top:1rem">Neo4j хранит сущности и связи, Qdrant — семантику. Ответ опирается на проверяемые узлы.</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-center flex-none px-2">
+            <p class="font-space font-bold" style="font-size:4rem;color:#6B7B8B">+</p>
+          </div>
+          <div class="flex flex-col flex-1 min-w-0 overflow-hidden rounded-xl" style="background:#232742">
+            <div class="w-full py-3 flex items-center justify-center" style="background:#4ADE80">
+              <i data-lucide="key-round" style="width:2rem;height:2rem;color:#1A1A2E"></i>
+            </div>
+            <div class="flex flex-col gap-3 p-8 flex-1">
+              <p class="font-inter" style="font-size:1.3rem;color:#4ADE80">02</p>
+              <h2 class="font-space font-bold" style="font-size:2.8rem;color:#F1FAEE">RBAC</h2>
+              <p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">Доступ на уровне узлов графа</p>
+              <p class="font-inter" style="font-size:1.5rem;color:#A8B8C8;margin-top:1rem">Каждый node в Neo4j помечен ролью; запрос фильтрует подграф до выполнения LLM.</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-center flex-none px-2">
+            <p class="font-space font-bold" style="font-size:4rem;color:#6B7B8B">+</p>
+          </div>
+          <div class="flex flex-col flex-1 min-w-0 overflow-hidden rounded-xl" style="background:#232742">
+            <div class="w-full py-3 flex items-center justify-center" style="background:#FFC300">
+              <i data-lucide="shield-check" style="width:2rem;height:2rem;color:#1A1A2E"></i>
+            </div>
+            <div class="flex flex-col gap-3 p-8 flex-1">
+              <p class="font-inter" style="font-size:1.3rem;color:#FFC300">03</p>
+              <h2 class="font-space font-bold" style="font-size:2.8rem;color:#F1FAEE">Guardrails</h2>
+              <p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">Input + Output контроль</p>
+              <p class="font-inter" style="font-size:1.5rem;color:#A8B8C8;margin-top:1rem">PII-redaction, prompt-injection detection, валидация формата ответа.</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-center flex-none px-2">
+            <p class="font-space font-bold" style="font-size:4rem;color:#6B7B8B">=</p>
+          </div>
+          <div class="flex flex-col overflow-hidden rounded-xl" style="flex:1.4;background:#FD652D">
+            <div class="flex flex-col gap-4 p-8 flex-1 justify-center items-center text-center">
+              <h2 class="font-space font-bold" style="font-size:2.8rem;color:#fff">Проверяемые ответы</h2>
+              <p class="font-inter" style="font-size:1.5rem;color:#fff">audit-trail · zero-trust · air-gapped</p>
+            </div>
+          </div>
+        </div>
+        <div class="flex flex-row gap-0 px-16 pb-6">
+          <div class="flex-1 text-center">
+            <p class="font-inter" style="font-size:1.3rem;color:#4FC3F7">→ Решает: галлюцинации</p>
+          </div>
+          <div class="flex-1 text-center">
+            <p class="font-inter" style="font-size:1.3rem;color:#4ADE80">→ Решает: утечки данных</p>
+          </div>
+          <div class="flex-1 text-center">
+            <p class="font-inter" style="font-size:1.3rem;color:#FFC300">→ Решает: атаки на LLM</p>
+          </div>
+          <div style="flex:1.4"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SLIDE 4 ===== -->
+    <div class="slide">
+      <div class="slide-inner scaled relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+        <div class="px-20 pt-10 pb-4">
+          <p class="font-inter font-bold tracking-widest" style="font-size:1.4rem;color:#FD652D">04 · АРХИТЕКТУРА · C4 LEVEL 1-2</p>
+          <h1 class="font-space font-bold leading-tight" style="font-size:3.2rem;color:#F1FAEE">Микросервисы и интеграция компонентов</h1>
+        </div>
+        <div class="flex-1 min-h-0 mx-16 mb-8 rounded-xl overflow-hidden flex flex-col gap-6 p-8" style="background:#0E1424">
+          <div class="flex flex-row justify-center gap-12">
+            <div class="actor-box">
+              <p class="font-space font-bold" style="font-size:1.5rem;color:#F1FAEE">Аналитик / Юрист</p>
+              <p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">запросы на естественном языке</p>
+            </div>
+            <div class="actor-box">
+              <p class="font-space font-bold" style="font-size:1.5rem;color:#F1FAEE">Администратор</p>
+              <p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">управление ролями и данными</p>
+            </div>
+          </div>
+          <div class="flex justify-center">
+            <svg width="4" height="30"><line x1="2" y1="0" x2="2" y2="30" stroke="#4FC3F7" stroke-width="2"/><polygon points="-4,25 10,25 2,30" fill="#4FC3F7"/></svg>
+          </div>
+          <div class="flex flex-col gap-4 rounded-xl p-5" style="border:2px dashed #FD652D">
+            <p class="font-space font-bold text-center" style="font-size:1.6rem;color:#FD652D">GraphRAG Platform (FastAPI · LangGraph)</p>
+            <div class="grid gap-4" style="grid-template-columns:repeat(6,1fr)">
+              <div class="svc-box"><p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">Frontend</p><p class="font-inter" style="font-size:1rem;color:#4FC3F7">React UI</p></div>
+              <div class="svc-box"><p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">API Gateway</p><p class="font-inter" style="font-size:1rem;color:#4FC3F7">FastAPI</p></div>
+              <div class="svc-box"><p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">LangGraph</p><p class="font-inter" style="font-size:1rem;color:#4FC3F7">stateful agents</p></div>
+              <div class="svc-box"><p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">RBAC Service</p><p class="font-inter" style="font-size:1rem;color:#4FC3F7">Cypher filters</p></div>
+              <div class="svc-box"><p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">Guardrails</p><p class="font-inter" style="font-size:1rem;color:#4FC3F7">PII · Injection</p></div>
+              <div class="svc-box"><p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">Ingestion</p><p class="font-inter" style="font-size:1rem;color:#4FC3F7">chunk · embed · extract</p></div>
+            </div>
+          </div>
+          <div class="flex justify-center">
+            <svg width="4" height="30"><line x1="2" y1="0" x2="2" y2="30" stroke="#4FC3F7" stroke-width="2"/><polygon points="-4,25 10,25 2,30" fill="#4FC3F7"/></svg>
+          </div>
+          <div class="flex flex-row justify-center gap-8">
+            <div class="infra-box">
+              <p class="font-space font-bold" style="font-size:1.5rem;color:#4FC3F7">Neo4j</p>
+              <p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">Knowledge Graph</p>
+            </div>
+            <div class="infra-box">
+              <p class="font-space font-bold" style="font-size:1.5rem;color:#FD652D">Qdrant</p>
+              <p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">Vector Store</p>
+            </div>
+            <div class="infra-box">
+              <p class="font-space font-bold" style="font-size:1.5rem;color:#A8B8C8">PostgreSQL</p>
+              <p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">Metadata · Users</p>
+            </div>
+            <div class="infra-box">
+              <p class="font-space font-bold" style="font-size:1.5rem;color:#4ADE80">Ollama</p>
+              <p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">Qwen 2.5 · bge-m3</p>
+            </div>
+          </div>
+          <div class="flex justify-center">
+            <p class="font-inter" style="font-size:1.2rem;color:#6B7B8B">Связи: REST · gRPC · Cypher · async events</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SLIDE 5 ===== -->
+    <div class="slide">
+      <div class="slide-inner scaled relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+        <div class="px-20 pt-10 pb-4">
+          <p class="font-inter font-bold tracking-widest" style="font-size:1.4rem;color:#FD652D">05 · ТЕХНИЧЕСКИЙ СТЕК</p>
+          <h1 class="font-space font-bold leading-tight" style="font-size:3.2rem;color:#F1FAEE">Выбор продиктован 8GB VRAM и air-gap</h1>
+        </div>
+        <div class="flex flex-row gap-10 px-16 pb-10 flex-1 min-h-0">
+          <div class="flex flex-col flex-none overflow-hidden rounded-xl" style="flex:3">
+            <table class="w-full h-full" style="border-collapse:collapse">
+              <thead>
+                <tr style="background:#232742">
+                  <th class="text-left px-6 py-4"><p class="font-space font-bold" style="font-size:1.5rem;color:#F1FAEE">Компонент</p></th>
+                  <th class="text-left px-6 py-4"><p class="font-space font-bold" style="font-size:1.5rem;color:#F1FAEE">Выбор</p></th>
+                  <th class="text-left px-6 py-4"><p class="font-space font-bold" style="font-size:1.5rem;color:#F1FAEE">Обоснование</p></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-top:1px solid #2A2F4A">
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">LLM</p></td>
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.3rem;color:#4FC3F7">Qwen 2.5 (7B)</p></td>
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">русскоязычная, ~4.5 GB VRAM, instruct</p></td>
+                </tr>
+                <tr style="border-top:1px solid #2A2F4A">
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Embeddings</p></td>
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.3rem;color:#4FC3F7">bge-m3</p></td>
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">multilingual, 8192 ctx, top-tier RU</p></td>
+                </tr>
+                <tr style="border-top:1px solid #2A2F4A">
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Inference</p></td>
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.3rem;color:#4FC3F7">Ollama</p></td>
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">локальный сервер, GGUF, REST API</p></td>
+                </tr>
+                <tr style="border-top:1px solid #2A2F4A">
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Graph DB</p></td>
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.3rem;color:#4FC3F7">Neo4j 5</p></td>
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Cypher, node-level ACL, community ed.</p></td>
+                </tr>
+                <tr style="border-top:1px solid #2A2F4A">
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Vector DB</p></td>
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.3rem;color:#4FC3F7">Qdrant</p></td>
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">on-prem, payload filtering, gRPC</p></td>
+                </tr>
+                <tr style="border-top:1px solid #2A2F4A">
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Orchestration</p></td>
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.3rem;color:#4FC3F7">LangGraph</p></td>
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">stateful, ветвление, human-in-the-loop</p></td>
+                </tr>
+                <tr style="border-top:1px solid #2A2F4A">
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Metadata</p></td>
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.3rem;color:#4FC3F7">PostgreSQL</p></td>
+                  <td class="px-6 py-4"><p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">users, sessions, audit-log</p></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="flex flex-col gap-6 rounded-xl p-8 overflow-hidden" style="flex:2;background:#232742">
+            <p class="font-inter font-bold tracking-widest" style="font-size:1.3rem;color:#6B7B8B">ЦЕЛЕВОЕ ЖЕЛЕЗО</p>
+            <div>
+              <p class="font-space font-bold" style="font-size:4.5rem;color:#FD652D">RTX 4060</p>
+              <p class="font-inter" style="font-size:1.5rem;color:#A8B8C8">8 GB GDDR6 · Windows 11</p>
+            </div>
+            <p class="font-space font-bold" style="font-size:1.6rem;color:#F1FAEE">Распределение VRAM</p>
+            <div class="flex flex-col gap-3">
+              <div class="flex flex-row rounded overflow-hidden" style="height:40px">
+                <div style="flex:56;background:#FD652D"></div>
+                <div style="flex:14;background:#4FC3F7"></div>
+                <div style="flex:18;background:#FFC300"></div>
+                <div style="flex:12;background:#6B7B8B"></div>
+              </div>
+              <div class="flex flex-row gap-4 flex-wrap">
+                <div class="flex flex-row items-center gap-2"><div style="width:14px;height:14px;background:#FD652D;border-radius:2px"></div><p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">Qwen 2.5 7B 56%</p></div>
+                <div class="flex flex-row items-center gap-2"><div style="width:14px;height:14px;background:#4FC3F7;border-radius:2px"></div><p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">bge-m3 14%</p></div>
+                <div class="flex flex-row items-center gap-2"><div style="width:14px;height:14px;background:#FFC300;border-radius:2px"></div><p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">KV cache 18%</p></div>
+                <div class="flex flex-row items-center gap-2"><div style="width:14px;height:14px;background:#6B7B8B;border-radius:2px"></div><p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">Запас / OS 12%</p></div>
+              </div>
+            </div>
+            <p class="font-inter font-bold" style="font-size:1.4rem;color:#4ADE80;margin-top:auto">Полностью offline · zero внешние API</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SLIDE 6 ===== -->
+    <div class="slide">
+      <div class="slide-inner scaled relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+        <div class="px-20 pt-10 pb-6">
+          <p class="font-inter font-bold tracking-widest" style="font-size:1.4rem;color:#FD652D">06 · GRAPHRAG PIPELINE</p>
+          <h1 class="font-space font-bold leading-tight" style="font-size:3.4rem;color:#F1FAEE">От документа до графа знаний</h1>
+        </div>
+        <div class="flex-1 min-h-0 px-12 flex flex-col justify-center gap-6">
+          <div class="flex flex-row items-center gap-2">
+            <div class="stage" style="flex:1">
+              <div class="flex flex-row items-center gap-3">
+                <i data-lucide="file-text" style="width:2rem;height:2rem;color:#4FC3F7"></i>
+                <p class="font-inter" style="font-size:1.2rem;color:#6B7B8B">01</p>
+              </div>
+              <p class="font-space font-bold" style="font-size:1.8rem;color:#F1FAEE">Документы</p>
+              <p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">PDF / DOCX / TXT</p>
+              <p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">RusLawOD, RFSD</p>
+            </div>
+            <svg width="60" height="24" viewBox="0 0 60 24"><line x1="0" y1="12" x2="48" y2="12" stroke="#4FC3F7" stroke-width="2"/><polygon points="42,6 60,12 42,18" fill="#4FC3F7"/></svg>
+            <div class="stage" style="flex:1.3">
+              <div class="flex flex-row items-center gap-3">
+                <i data-lucide="scissors" style="width:2rem;height:2rem;color:#4FC3F7"></i>
+                <p class="font-inter" style="font-size:1.2rem;color:#6B7B8B">02</p>
+              </div>
+              <p class="font-space font-bold" style="font-size:1.8rem;color:#F1FAEE">Chunking + NER/RE</p>
+              <p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">semantic chunks</p>
+              <p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">entity & relation extraction (LLM)</p>
+            </div>
+            <div class="flex flex-col gap-2 flex-none">
+              <svg width="80" height="80" viewBox="0 0 80 80">
+                <line x1="0" y1="40" x2="30" y2="40" stroke="#4FC3F7" stroke-width="2"/>
+                <line x1="30" y1="40" x2="30" y2="15" stroke="#4FC3F7" stroke-width="2"/>
+                <line x1="30" y1="15" x2="68" y2="15" stroke="#4FC3F7" stroke-width="2"/>
+                <polygon points="62,9 80,15 62,21" fill="#4FC3F7"/>
+                <line x1="30" y1="40" x2="30" y2="65" stroke="#FD652D" stroke-width="2"/>
+                <line x1="30" y1="65" x2="68" y2="65" stroke="#FD652D" stroke-width="2"/>
+                <polygon points="62,59 80,65 62,71" fill="#FD652D"/>
+              </svg>
+            </div>
+            <div class="flex flex-col gap-4" style="flex:1.3">
+              <div class="stage" style="border-color:#4FC3F7">
+                <div class="flex flex-row items-center gap-3">
+                  <i data-lucide="network" style="width:1.8rem;height:1.8rem;color:#4FC3F7"></i>
+                  <p class="font-inter" style="font-size:1.1rem;color:#6B7B8B">03a</p>
+                </div>
+                <p class="font-space font-bold" style="font-size:1.6rem;color:#4FC3F7">Neo4j Graph</p>
+                <p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">узлы: Документ, Норма, Лицо, Дата</p>
+                <p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">рёбра: cites, defines</p>
+              </div>
+              <div class="stage" style="border-color:#FD652D">
+                <div class="flex flex-row items-center gap-3">
+                  <i data-lucide="database" style="width:1.8rem;height:1.8rem;color:#FD652D"></i>
+                  <p class="font-inter" style="font-size:1.1rem;color:#6B7B8B">03b</p>
+                </div>
+                <p class="font-space font-bold" style="font-size:1.6rem;color:#FD652D">Qdrant Vectors</p>
+                <p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">bge-m3 embeddings</p>
+                <p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">payload: doc_id, role_tag</p>
+              </div>
+            </div>
+            <div class="flex-none">
+              <svg width="80" height="80" viewBox="0 0 80 80">
+                <line x1="0" y1="15" x2="50" y2="15" stroke="#4FC3F7" stroke-width="2"/>
+                <line x1="50" y1="15" x2="50" y2="40" stroke="#4ADE80" stroke-width="2"/>
+                <line x1="0" y1="65" x2="50" y2="65" stroke="#FD652D" stroke-width="2"/>
+                <line x1="50" y1="65" x2="50" y2="40" stroke="#4ADE80" stroke-width="2"/>
+                <line x1="50" y1="40" x2="68" y2="40" stroke="#4ADE80" stroke-width="2"/>
+                <polygon points="62,34 80,40 62,46" fill="#4ADE80"/>
+              </svg>
+            </div>
+            <div class="stage" style="flex:1.3;border-color:#4ADE80">
+              <div class="flex flex-row items-center gap-3">
+                <i data-lucide="layers" style="width:2rem;height:2rem;color:#4ADE80"></i>
+                <p class="font-inter" style="font-size:1.2rem;color:#6B7B8B">04</p>
+              </div>
+              <p class="font-space font-bold" style="font-size:1.8rem;color:#4ADE80">Hybrid Retriever</p>
+              <p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">Cypher subgraph + top-k semantic</p>
+              <p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">→ контекст для LLM</p>
+            </div>
+          </div>
+          <div class="flex flex-row gap-0 mt-4 mx-4 rounded-xl overflow-hidden" style="background:#232742">
+            <div class="flex flex-col items-center justify-center py-5 flex-1" style="border-right:1px solid #2A2F4A">
+              <p class="font-space font-bold" style="font-size:2.5rem;color:#FD652D">~2.5K</p>
+              <p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">документов RusLawOD</p>
+            </div>
+            <div class="flex flex-col items-center justify-center py-5 flex-1" style="border-right:1px solid #2A2F4A">
+              <p class="font-space font-bold" style="font-size:2.5rem;color:#4FC3F7">~48K</p>
+              <p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">узлов в графе</p>
+            </div>
+            <div class="flex flex-col items-center justify-center py-5 flex-1" style="border-right:1px solid #2A2F4A">
+              <p class="font-space font-bold" style="font-size:2.5rem;color:#4ADE80">1024</p>
+              <p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">dim bge-m3</p>
+            </div>
+            <div class="flex flex-col items-center justify-center py-5 flex-1">
+              <p class="font-space font-bold" style="font-size:2.5rem;color:#FFC300">hybrid</p>
+              <p class="font-inter" style="font-size:1.2rem;color:#A8B8C8">retrieval strategy</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SLIDE 7 ===== -->
+    <div class="slide">
+      <div class="slide-inner scaled relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+        <div class="px-20 pt-10 pb-6">
+          <p class="font-inter font-bold tracking-widest" style="font-size:1.4rem;color:#FD652D">07 · LANGGRAPH ORCHESTRATION</p>
+          <h1 class="font-space font-bold leading-tight" style="font-size:3.4rem;color:#F1FAEE">Stateful агенты и граф состояний</h1>
+        </div>
+        <div class="flex flex-row flex-1 min-h-0 gap-8 px-16 pb-10">
+          <div class="flex flex-col justify-center gap-3 overflow-hidden" style="flex:3">
+            <div class="flex flex-col items-center gap-2">
+              <div class="node node-gray" style="width:280px"><p class="font-space font-bold" style="font-size:1.4rem;color:#A8B8C8">User Query</p></div>
+              <svg width="4" height="28"><line x1="2" y1="0" x2="2" y2="28" stroke="#6B7B8B" stroke-width="2"/><polygon points="-3,22 9,22 2,28" fill="#6B7B8B"/></svg>
+              <div class="node node-yellow" style="width:300px">
+                <p class="font-space font-bold" style="font-size:1.4rem;color:#FFC300">Input Guardrails</p>
+                <p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">PII · Injection</p>
+              </div>
+              <svg width="4" height="28"><line x1="2" y1="0" x2="2" y2="28" stroke="#4FC3F7" stroke-width="2"/><polygon points="-3,22 9,22 2,28" fill="#4FC3F7"/></svg>
+              <div class="node" style="width:300px">
+                <p class="font-space font-bold" style="font-size:1.4rem;color:#4FC3F7">Router Agent</p>
+                <p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">graph vs vector</p>
+              </div>
+              <div class="flex flex-row items-start gap-8 mt-1">
+                <div class="flex flex-col items-center gap-2">
+                  <svg width="4" height="22"><line x1="2" y1="0" x2="2" y2="22" stroke="#4ADE80" stroke-width="2"/><polygon points="-3,16 9,16 2,22" fill="#4ADE80"/></svg>
+                  <div class="node node-green" style="width:230px">
+                    <p class="font-space font-bold" style="font-size:1.3rem;color:#4ADE80">RBAC Filter</p>
+                    <p class="font-inter" style="font-size:1rem;color:#A8B8C8">Cypher по ролям</p>
+                  </div>
+                </div>
+                <div class="flex flex-col items-center gap-2">
+                  <svg width="4" height="22"><line x1="2" y1="0" x2="2" y2="22" stroke="#4FC3F7" stroke-width="2"/><polygon points="-3,16 9,16 2,22" fill="#4FC3F7"/></svg>
+                  <div class="node" style="width:230px">
+                    <p class="font-space font-bold" style="font-size:1.3rem;color:#4FC3F7">Hybrid Retriever</p>
+                  </div>
+                </div>
+              </div>
+              <svg width="4" height="22"><line x1="2" y1="0" x2="2" y2="22" stroke="#FD652D" stroke-width="2"/><polygon points="-3,16 9,16 2,22" fill="#FD652D"/></svg>
+              <div class="node node-orange" style="width:300px">
+                <p class="font-space font-bold" style="font-size:1.4rem;color:#FD652D">LLM Generate</p>
+                <p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">Qwen 2.5 7B</p>
+              </div>
+              <svg width="4" height="22"><line x1="2" y1="0" x2="2" y2="22" stroke="#FFC300" stroke-width="2"/><polygon points="-3,16 9,16 2,22" fill="#FFC300"/></svg>
+              <div class="node node-yellow" style="width:300px">
+                <p class="font-space font-bold" style="font-size:1.4rem;color:#FFC300">Output Guardrails</p>
+              </div>
+              <svg width="4" height="22"><line x1="2" y1="0" x2="2" y2="22" stroke="#6B7B8B" stroke-width="2"/><polygon points="-3,16 9,16 2,22" fill="#6B7B8B"/></svg>
+              <div class="node node-gray" style="width:280px"><p class="font-space font-bold" style="font-size:1.4rem;color:#A8B8C8">Verified Answer</p></div>
+            </div>
+            <p class="font-inter text-center" style="font-size:1.2rem;color:#6B7B8B">Условные рёбра позволяют повторный retrieval при низкой уверенности</p>
+          </div>
+          <div class="flex flex-col flex-none overflow-hidden rounded-xl" style="flex:2;background:#0E1424">
+            <div class="px-6 py-3" style="border-bottom:1px solid #2A2F4A">
+              <p class="font-mono" style="font-size:1.2rem;color:#6B7B8B">orchestrator/graph.py</p>
+            </div>
+            <div class="flex-1 overflow-hidden p-6">
+              <pre class="font-mono" style="font-size:1.15rem;color:#A8B8C8;line-height:1.7"><span style="color:#4FC3F7">graph</span> = StateGraph(AgentState)
+<span style="color:#4FC3F7">graph</span>.add_node(<span style="color:#4ADE80">"guard_in"</span>, input_guardrails)
+<span style="color:#4FC3F7">graph</span>.add_node(<span style="color:#4ADE80">"router"</span>, router_agent)
+<span style="color:#4FC3F7">graph</span>.add_node(<span style="color:#4ADE80">"rbac"</span>, rbac_filter)
+<span style="color:#4FC3F7">graph</span>.add_node(<span style="color:#4ADE80">"retrieve"</span>, hybrid_retriever)
+<span style="color:#4FC3F7">graph</span>.add_node(<span style="color:#4ADE80">"generate"</span>, llm_generate)
+<span style="color:#4FC3F7">graph</span>.add_node(<span style="color:#4ADE80">"guard_out"</span>, output_guardrails)
+
+<span style="color:#4FC3F7">graph</span>.set_entry_point(<span style="color:#4ADE80">"guard_in"</span>)
+<span style="color:#4FC3F7">graph</span>.add_edge(<span style="color:#4ADE80">"guard_in"</span>, <span style="color:#4ADE80">"router"</span>)
+<span style="color:#4FC3F7">graph</span>.add_conditional_edges(
+    <span style="color:#4ADE80">"router"</span>, choose_strategy,
+    {<span style="color:#4ADE80">"graph"</span>: <span style="color:#4ADE80">"rbac"</span>, <span style="color:#4ADE80">"vector"</span>: <span style="color:#4ADE80">"retrieve"</span>}
+)
+<span style="color:#4FC3F7">graph</span>.add_edge(<span style="color:#4ADE80">"rbac"</span>, <span style="color:#4ADE80">"retrieve"</span>)
+<span style="color:#4FC3F7">graph</span>.add_edge(<span style="color:#4ADE80">"retrieve"</span>, <span style="color:#4ADE80">"generate"</span>)
+<span style="color:#4FC3F7">graph</span>.add_conditional_edges(
+    <span style="color:#4ADE80">"generate"</span>, check_confidence,
+    {<span style="color:#4ADE80">"low"</span>: <span style="color:#4ADE80">"router"</span>, <span style="color:#4ADE80">"ok"</span>: <span style="color:#4ADE80">"guard_out"</span>}
+)
+<span style="color:#4FC3F7">graph</span>.add_edge(<span style="color:#4ADE80">"guard_out"</span>, END)</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SLIDE 8 ===== -->
+    <div class="slide">
+      <div class="slide-inner scaled relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+        <div class="px-20 pt-10 pb-6">
+          <p class="font-inter font-bold tracking-widest" style="font-size:1.4rem;color:#FD652D">08 · SECURITY</p>
+          <h1 class="font-space font-bold leading-tight" style="font-size:3.2rem;color:#F1FAEE">RBAC на узлах графа + двусторонние Guardrails</h1>
+        </div>
+        <div class="flex flex-row gap-8 px-16 pb-10 flex-1 min-h-0">
+          <div class="flex flex-col flex-1 min-w-0 rounded-xl overflow-hidden" style="background:#232742">
+            <div class="flex flex-row items-center gap-4 px-8 py-4" style="background:#1A3A2A">
+              <i data-lucide="key-round" style="width:2rem;height:2rem;color:#4ADE80"></i>
+              <p class="font-space font-bold" style="font-size:1.5rem;color:#4ADE80">NODE-LEVEL RBAC</p>
+            </div>
+            <div class="flex flex-col gap-4 p-8 flex-1">
+              <h2 class="font-space font-bold" style="font-size:2rem;color:#F1FAEE">Доступ ограничен до выполнения LLM</h2>
+              <div class="flex flex-col gap-3">
+                <div class="flex flex-row gap-3 items-start"><i data-lucide="circle-dot" style="width:1.4rem;height:1.4rem;color:#4ADE80;flex-shrink:0;margin-top:2px"></i><p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">Каждый узел Neo4j имеет свойство <span style="color:#4FC3F7">roles: [str]</span></p></div>
+                <div class="flex flex-row gap-3 items-start"><i data-lucide="circle-dot" style="width:1.4rem;height:1.4rem;color:#4ADE80;flex-shrink:0;margin-top:2px"></i><p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">Cypher-запрос фильтрует подграф ролью пользователя</p></div>
+                <div class="flex flex-row gap-3 items-start"><i data-lucide="circle-dot" style="width:1.4rem;height:1.4rem;color:#4ADE80;flex-shrink:0;margin-top:2px"></i><p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">LLM никогда не видит запрещённые сущности</p></div>
+              </div>
+              <div class="rounded-lg p-5 mt-2" style="background:#0E1424">
+                <pre class="font-mono" style="font-size:1.2rem;color:#A8B8C8;line-height:1.7"><span style="color:#FFC300">MATCH</span> (d:Document)-[:CONTAINS]->(n:Norm)
+<span style="color:#FFC300">WHERE</span> $user_role <span style="color:#FFC300">IN</span> d.roles
+  <span style="color:#FFC300">AND</span> $user_role <span style="color:#FFC300">IN</span> n.roles
+<span style="color:#FFC300">RETURN</span> n</pre>
+              </div>
+              <div class="flex flex-row items-center gap-3 mt-2">
+                <div class="flex flex-row gap-2">
+                  <div class="rounded-full flex items-center justify-center" style="width:36px;height:36px;background:#4ADE80"><p class="font-inter font-bold" style="font-size:0.9rem;color:#1A1A2E">N1</p></div>
+                  <div class="rounded-full flex items-center justify-center" style="width:36px;height:36px;background:#4ADE80"><p class="font-inter font-bold" style="font-size:0.9rem;color:#1A1A2E">N2</p></div>
+                  <div class="rounded-full flex items-center justify-center" style="width:36px;height:36px;background:#4ADE80"><p class="font-inter font-bold" style="font-size:0.9rem;color:#1A1A2E">N3</p></div>
+                  <div class="rounded-full flex items-center justify-center border" style="width:36px;height:36px;background:#232742;border-color:#6B7B8B"><p class="font-inter" style="font-size:1.2rem;color:#6B7B8B">🔒</p></div>
+                  <div class="rounded-full flex items-center justify-center border" style="width:36px;height:36px;background:#232742;border-color:#6B7B8B"><p class="font-inter" style="font-size:1.2rem;color:#6B7B8B">🔒</p></div>
+                </div>
+                <p class="font-inter" style="font-size:1.2rem;color:#6B7B8B">analyst: 3 из 5 узлов · admin: все 5</p>
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-col flex-1 min-w-0 gap-6">
+            <div class="flex flex-col rounded-xl overflow-hidden flex-1" style="background:#232742">
+              <div class="flex flex-row items-center gap-4 px-8 py-4" style="background:#3A3000">
+                <i data-lucide="arrow-down-to-line" style="width:2rem;height:2rem;color:#FFC300"></i>
+                <p class="font-space font-bold" style="font-size:1.5rem;color:#FFC300">Input Guardrails</p>
+              </div>
+              <div class="flex flex-col gap-3 p-6 flex-1">
+                <div class="flex flex-row gap-3 items-start"><i data-lucide="shield" style="width:1.3rem;height:1.3rem;color:#FFC300;flex-shrink:0;margin-top:3px"></i><p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">PII detection (ФИО, ИНН, паспорт) → redaction</p></div>
+                <div class="flex flex-row gap-3 items-start"><i data-lucide="shield" style="width:1.3rem;height:1.3rem;color:#FFC300;flex-shrink:0;margin-top:3px"></i><p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Prompt injection detection (regex + classifier)</p></div>
+                <div class="flex flex-row gap-3 items-start"><i data-lucide="shield" style="width:1.3rem;height:1.3rem;color:#FFC300;flex-shrink:0;margin-top:3px"></i><p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Token & length validation</p></div>
+                <div class="rounded p-3 mt-1" style="background:#0E1424">
+                  <p class="font-mono" style="font-size:1.1rem;color:#FFC300">'Игнорируй инструкции...' → <span style="color:#FD652D">BLOCKED</span></p>
+                </div>
+              </div>
+            </div>
+            <div class="flex flex-col rounded-xl overflow-hidden flex-1" style="background:#232742">
+              <div class="flex flex-row items-center gap-4 px-8 py-4" style="background:#1A3A1A">
+                <i data-lucide="arrow-up-from-line" style="width:2rem;height:2rem;color:#4ADE80"></i>
+                <p class="font-space font-bold" style="font-size:1.5rem;color:#4ADE80">Output Guardrails</p>
+              </div>
+              <div class="flex flex-col gap-3 p-6 flex-1">
+                <div class="flex flex-row gap-3 items-start"><i data-lucide="check-circle" style="width:1.3rem;height:1.3rem;color:#4ADE80;flex-shrink:0;margin-top:3px"></i><p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Grounding check vs retrieved subgraph</p></div>
+                <div class="flex flex-row gap-3 items-start"><i data-lucide="check-circle" style="width:1.3rem;height:1.3rem;color:#4ADE80;flex-shrink:0;margin-top:3px"></i><p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">PII leak в ответе → redaction</p></div>
+                <div class="flex flex-row gap-3 items-start"><i data-lucide="check-circle" style="width:1.3rem;height:1.3rem;color:#4ADE80;flex-shrink:0;margin-top:3px"></i><p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Schema-валидация JSON-ответа</p></div>
+                <div class="rounded p-3 mt-1" style="background:#0E1424">
+                  <p class="font-mono" style="font-size:1.1rem;color:#4ADE80">Ответ без источника → <span style="color:#4FC3F7">re-route retrieve</span></p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SLIDE 9 ===== -->
+    <div class="slide">
+      <div class="slide-inner scaled relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+        <div class="px-20 pt-10 pb-6">
+          <p class="font-inter font-bold tracking-widest" style="font-size:1.4rem;color:#FD652D">9 · OBSERVABILITY</p>
+          <h1 class="font-space font-bold leading-tight" style="font-size:3.4rem;color:#F1FAEE">Трассировка, метрики, дашборды</h1>
+        </div>
+        <div class="flex flex-row gap-6 px-16 flex-none">
+          <div class="flex flex-col flex-1 min-w-0 rounded-xl overflow-hidden" style="background:#232742">
+            <div class="w-full py-3 px-6" style="background:#4FC3F7">
+              <p class="font-space font-bold" style="font-size:1.6rem;color:#1A1A2E">Jaeger</p>
+              <p class="font-inter" style="font-size:1rem;color:#1A1A2E">Distributed Traces</p>
+            </div>
+            <div class="flex flex-col gap-2 p-5">
+              <p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">• span: guard_in → router → retrieve → generate</p>
+              <p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">• end-to-end latency breakdown</p>
+              <p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">• корреляция по trace_id</p>
+            </div>
+          </div>
+          <div class="flex flex-col flex-1 min-w-0 rounded-xl overflow-hidden" style="background:#232742">
+            <div class="w-full py-3 px-6" style="background:#FD652D">
+              <p class="font-space font-bold" style="font-size:1.6rem;color:#1A1A2E">Prometheus</p>
+              <p class="font-inter" style="font-size:1rem;color:#1A1A2E">Metrics</p>
+            </div>
+            <div class="flex flex-col gap-2 p-5">
+              <p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">• request_rate, error_rate</p>
+              <p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">• llm_token_per_sec, vram_usage</p>
+              <p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">• guardrails_blocked_total</p>
+            </div>
+          </div>
+          <div class="flex flex-col flex-1 min-w-0 rounded-xl overflow-hidden" style="background:#232742">
+            <div class="w-full py-3 px-6" style="background:#4ADE80">
+              <p class="font-space font-bold" style="font-size:1.6rem;color:#1A1A2E">Grafana</p>
+              <p class="font-inter" style="font-size:1rem;color:#1A1A2E">Dashboards</p>
+            </div>
+            <div class="flex flex-col gap-2 p-5">
+              <p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">• SLO: P95 latency < 12s</p>
+              <p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">• RBAC denials per role</p>
+              <p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">• топ запросов и подграфов</p>
+            </div>
+          </div>
+        </div>
+        <div class="flex-1 min-h-0 mx-16 my-6 rounded-xl overflow-hidden flex flex-col" style="background:#232742">
+          <div class="px-8 pt-5">
+            <p class="font-space font-bold" style="font-size:1.5rem;color:#F1FAEE">P95 Latency — мониторинг в реальном времени</p>
+          </div>
+          <div class="flex-1 min-h-0 px-6 pb-4">
+            <canvas id="latencyChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SLIDE 10 ===== -->
+    <div class="slide">
+      <div class="slide-inner scaled relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+        <div class="px-20 pt-10 pb-4">
+          <p class="font-inter font-bold tracking-widest" style="font-size:1.4rem;color:#FD652D">10 · PERFORMANCE</p>
+          <h1 class="font-space font-bold leading-tight" style="font-size:3.2rem;color:#F1FAEE">Измерено на целевом железе</h1>
+        </div>
+        <div class="flex flex-row px-16 gap-0 my-4">
+          <div class="flex flex-col items-center justify-center flex-1 py-5" style="border-right:1px solid #2A2F4A">
+            <p class="font-space font-bold" style="font-size:3.8rem;color:#FD652D">7.2 GB</p>
+            <p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">пик VRAM</p>
+          </div>
+          <div class="flex flex-col items-center justify-center flex-1 py-5" style="border-right:1px solid #2A2F4A">
+            <p class="font-space font-bold" style="font-size:3.8rem;color:#4FC3F7">10.4 с</p>
+            <p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">P95 end-to-end</p>
+          </div>
+          <div class="flex flex-col items-center justify-center flex-1 py-5">
+            <p class="font-space font-bold" style="font-size:3.8rem;color:#4ADE80">28 tok/s</p>
+            <p class="font-inter" style="font-size:1.4rem;color:#A8B8C8">генерация T-lite Q4_K_M</p>
+          </div>
+        </div>
+        <div class="flex flex-row gap-8 px-16 pb-10 flex-1 min-h-0">
+          <div class="flex flex-col flex-1 min-w-0 rounded-xl p-6 overflow-hidden" style="background:#232742">
+            <p class="font-space font-bold" style="font-size:1.5rem;color:#F1FAEE;margin-bottom:8px">Использование VRAM (8 GB)</p>
+            <div class="flex-1 min-h-0">
+              <canvas id="donutChart"></canvas>
+            </div>
+          </div>
+          <div class="flex flex-col flex-1 min-w-0 rounded-xl p-6 overflow-hidden" style="background:#232742">
+            <p class="font-space font-bold" style="font-size:1.5rem;color:#F1FAEE;margin-bottom:8px">Задержка по стадиям пайплайна (~10.4 с итого)</p>
+            <div class="flex-1 min-h-0">
+              <canvas id="latencyBar"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SLIDE 11 ===== -->
+    <div class="slide">
+      <div class="slide-inner scaled relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+        <div class="px-20 pt-10 pb-6">
+          <p class="font-inter font-bold tracking-widest" style="font-size:1.4rem;color:#FD652D">11 · ДОСТИЖЕНИЯ</p>
+          <h1 class="font-space font-bold leading-tight" style="font-size:3.4rem;color:#F1FAEE">Все требования ТЗ выполнены</h1>
+        </div>
+        <div class="flex flex-row gap-10 px-16 pb-10 flex-1 min-h-0">
+          <div class="flex flex-col gap-0 overflow-hidden" style="flex:3">
+            <div class="grid gap-0" style="grid-template-columns:1fr 1fr;grid-template-rows:repeat(5,1fr)">
+              <div class="flex flex-row items-center gap-4 py-5" style="border-bottom:1px solid #2A2F4A;padding-right:20px">
+                <i data-lucide="check-circle-2" style="width:2rem;height:2rem;color:#4ADE80;flex-shrink:0"></i>
+                <p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">GraphRAG pipeline (Neo4j + Qdrant)</p>
+              </div>
+              <div class="flex flex-row items-center gap-4 py-5" style="border-bottom:1px solid #2A2F4A;padding-left:20px;border-left:1px solid #2A2F4A">
+                <i data-lucide="check-circle-2" style="width:2rem;height:2rem;color:#4ADE80;flex-shrink:0"></i>
+                <p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">LangGraph stateful orchestration</p>
+              </div>
+              <div class="flex flex-row items-center gap-4 py-5" style="border-bottom:1px solid #2A2F4A;padding-right:20px">
+                <i data-lucide="check-circle-2" style="width:2rem;height:2rem;color:#4ADE80;flex-shrink:0"></i>
+                <p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Node-level RBAC в Neo4j</p>
+              </div>
+              <div class="flex flex-row items-center gap-4 py-5" style="border-bottom:1px solid #2A2F4A;padding-left:20px;border-left:1px solid #2A2F4A">
+                <i data-lucide="check-circle-2" style="width:2rem;height:2rem;color:#4ADE80;flex-shrink:0"></i>
+                <p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Input/Output Guardrails (PII, injection)</p>
+              </div>
+              <div class="flex flex-row items-center gap-4 py-5" style="border-bottom:1px solid #2A2F4A;padding-right:20px">
+                <i data-lucide="check-circle-2" style="width:2rem;height:2rem;color:#4ADE80;flex-shrink:0"></i>
+                <p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">On-premise / air-gapped (Ollama)</p>
+              </div>
+              <div class="flex flex-row items-center gap-4 py-5" style="border-bottom:1px solid #2A2F4A;padding-left:20px;border-left:1px solid #2A2F4A">
+                <i data-lucide="check-circle-2" style="width:2rem;height:2rem;color:#4ADE80;flex-shrink:0"></i>
+                <p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Поддержка русского языка</p>
+              </div>
+              <div class="flex flex-row items-center gap-4 py-5" style="border-bottom:1px solid #2A2F4A;padding-right:20px">
+                <i data-lucide="check-circle-2" style="width:2rem;height:2rem;color:#4ADE80;flex-shrink:0"></i>
+                <p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Работа на RTX 4060 8GB</p>
+              </div>
+              <div class="flex flex-row items-center gap-4 py-5" style="border-bottom:1px solid #2A2F4A;padding-left:20px;border-left:1px solid #2A2F4A">
+                <i data-lucide="check-circle-2" style="width:2rem;height:2rem;color:#4ADE80;flex-shrink:0"></i>
+                <p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">41 автоматический тест</p>
+              </div>
+              <div class="flex flex-row items-center gap-4 py-5" style="padding-right:20px">
+                <i data-lucide="check-circle-2" style="width:2rem;height:2rem;color:#4ADE80;flex-shrink:0"></i>
+                <p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Observability: Jaeger + Prometheus + Grafana</p>
+              </div>
+              <div class="flex flex-row items-center gap-4 py-5" style="padding-left:20px;border-left:1px solid #2A2F4A">
+                <i data-lucide="check-circle-2" style="width:2rem;height:2rem;color:#4ADE80;flex-shrink:0"></i>
+                <p class="font-inter" style="font-size:1.4rem;color:#F1FAEE">Frontend для конечных пользователей</p>
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-6 rounded-xl p-8 overflow-hidden" style="flex:2;background:#232742">
+            <p class="font-inter font-bold tracking-widest" style="font-size:1.2rem;color:#6B7B8B">СЕКТОРА ПРИМЕНЕНИЯ</p>
+            <div class="flex flex-col gap-6 flex-1">
+              <div class="flex flex-row items-center gap-5">
+                <i data-lucide="landmark" style="width:3rem;height:3rem;color:#4FC3F7;flex-shrink:0"></i>
+                <div>
+                  <p class="font-space font-bold" style="font-size:2rem;color:#F1FAEE">Банки</p>
+                  <p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">compliance, 115-ФЗ, внутренние политики</p>
+                </div>
+              </div>
+              <div class="flex flex-row items-center gap-5">
+                <i data-lucide="factory" style="width:3rem;height:3rem;color:#FFC300;flex-shrink:0"></i>
+                <div>
+                  <p class="font-space font-bold" style="font-size:2rem;color:#F1FAEE">Промышленность</p>
+                  <p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">регламенты, ТУ, нормативная база</p>
+                </div>
+              </div>
+              <div class="flex flex-row items-center gap-5">
+                <i data-lucide="scale" style="width:3rem;height:3rem;color:#4ADE80;flex-shrink:0"></i>
+                <div>
+                  <p class="font-space font-bold" style="font-size:2rem;color:#F1FAEE">Юр. департаменты</p>
+                  <p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">анализ судебной практики, RusLawOD</p>
+                </div>
+              </div>
+            </div>
+            <p class="font-inter font-bold" style="font-size:1.3rem;color:#FD652D">Общее: закрытый контур, чувствительные данные, аудит</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /#slides-track -->
+
+  <!-- Navigation hint bar -->
+  <div class="nav-hint" id="navHint">
+    <span>←</span>
+    <span class="key">←</span>
+    <span class="page-indicator" id="pageIndicator">1 / 11</span>
+    <span class="key">→</span>
+    <span>→</span>
+  </div>
+</div>
+
+<script>
+(function() {
+  const track = document.getElementById('slides-track');
+  const hint = document.getElementById('navHint');
+  const indicator = document.getElementById('pageIndicator');
+  const totalSlides = 11;
+  let currentSlide = 0;
+  let hintTimer = null;
+
+  function goToSlide(index) {
+    if (index < 0) index = 0;
+    if (index >= totalSlides) index = totalSlides - 1;
+    currentSlide = index;
+    track.style.transform = `translateX(-${currentSlide * 100}vw)`;
+    indicator.textContent = `${currentSlide + 1} / ${totalSlides}`;
+    showHint();
+    initChartsForSlide(currentSlide);
+  }
+
+  function showHint() {
+    hint.classList.remove('hidden');
+    if (hintTimer) clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => {
+      hint.classList.add('hidden');
+    }, 3000);
+  }
+
+  function initChartsForSlide(index) {
+    // Slide 9: latencyChart
+    if (index === 8) {
+      const canvas = document.getElementById('latencyChart');
+      if (canvas && !canvas._chartInitialized) {
+        canvas._chartInitialized = true;
+        new Chart(canvas, {
+          type: 'line',
+          data: {
+            labels: ['00:00','02:00','04:00','06:00','08:00','10:00','12:00','14:00','16:00','18:00'],
+            datasets: [{
+              label: 'P95 latency, сек',
+              data: [11.2, 10.4, 9.8, 12.1, 14.3, 11.7, 10.9, 9.6, 10.2, 11.0],
+              borderColor: '#FD652D',
+              backgroundColor: '#2A2F4A',
+              fill: true,
+              tension: 0.4,
+              pointBackgroundColor: '#FD652D',
+              pointRadius: 5
+            }]
+          },
+          options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: '#A8B8C8', font: { size: 14 } } }
+            },
+            scales: {
+              x: { ticks: { color: '#A8B8C8', font: { size: 13 } }, grid: { color: '#2A2F4A' } },
+              y: { ticks: { color: '#A8B8C8', font: { size: 13 } }, grid: { color: '#2A2F4A' }, min: 8, max: 16 }
+            }
+          }
+        });
+      }
+    }
+    // Slide 10: donutChart + latencyBar
+    if (index === 9) {
+      const donutCanvas = document.getElementById('donutChart');
+      if (donutCanvas && !donutCanvas._chartInitialized) {
+        donutCanvas._chartInitialized = true;
+        new Chart(donutCanvas, {
+          type: 'doughnut',
+          data: {
+            labels: ['Qwen 2.5 (7B)', 'bge-m3', 'KV cache', 'Запас / OS'],
+            datasets: [{
+              data: [4.5, 1.1, 1.4, 1.0],
+              backgroundColor: ['#FD652D','#4FC3F7','#FFC300','#6B7B8B'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { color: '#A8B8C8', font: { size: 14 }, padding: 14 } },
+              tooltip: { callbacks: { label: ctx => ctx.label + ': ' + ctx.raw + ' GB' } }
+            },
+            cutout: '60%'
+          }
+        });
+      }
+      const barCanvas = document.getElementById('latencyBar');
+      if (barCanvas && !barCanvas._chartInitialized) {
+        barCanvas._chartInitialized = true;
+        new Chart(barCanvas, {
+          type: 'bar',
+          data: {
+            labels: ['Guard_in','Router','RBAC+Retrieve','LLM Generate','Guard_out'],
+            datasets: [{
+              label: 'мс',
+              data: [120, 80, 1400, 8500, 300],
+              backgroundColor: ['#FFC300','#4FC3F7','#4ADE80','#FD652D','#FFC300'],
+              borderRadius: 4
+            }]
+          },
+          options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: ctx => ctx.raw + ' мс' } }
+            },
+            scales: {
+              x: { ticks: { color: '#A8B8C8', font: { size: 13 } }, grid: { color: '#2A2F4A' } },
+              y: { ticks: { color: '#A8B8C8', font: { size: 13 } }, grid: { color: '#2A2F4A' }, title: { display: true, text: 'мс', color: '#A8B8C8' } }
+            }
+          }
+        });
+      }
+    }
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+      e.preventDefault();
+      goToSlide(currentSlide + 1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      goToSlide(currentSlide - 1);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      goToSlide(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      goToSlide(totalSlides - 1);
+    }
+  });
+
+  // Touch swipe support
+  let touchStartX = 0;
+  let touchStartY = 0;
+  document.addEventListener('touchstart', function(e) {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  });
+  document.addEventListener('touchend', function(e) {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      if (dx < 0) goToSlide(currentSlide + 1);
+      else goToSlide(currentSlide - 1);
+    }
+  });
+
+  // Click on nav hint
+  hint.addEventListener('click', function(e) {
+    const rect = hint.getBoundingClientRect();
+    const midX = rect.left + rect.width / 2;
+    if (e.clientX < midX) goToSlide(currentSlide - 1);
+    else goToSlide(currentSlide + 1);
+  });
+
+  // Initialize lucide icons on first slide
+  lucide.createIcons();
+
+  // Initialize first slide charts if applicable
+  initChartsForSlide(0);
+
+  // Show hint briefly on load
+  showHint();
+})();
+</script>
+
+</body>
+</html>

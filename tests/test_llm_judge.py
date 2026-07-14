@@ -166,7 +166,7 @@ class TestLLMJudgePromptQuality:
 
     def test_stop_tokens_configured(self):
         """Judge: stop-токены настроены для предотвращения нежелательной генерации."""
-        from app.core.prompts import STOP_TOKENS
+        from app.core.constants import STOP_TOKENS
         assert len(STOP_TOKENS) > 0, "Должен быть хотя бы один стоп-токен"
         assert isinstance(STOP_TOKENS, list), "STOP_TOKENS должен быть списком"
 

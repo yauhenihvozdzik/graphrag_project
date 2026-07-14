@@ -175,15 +175,13 @@
         </div>
     </div>
 
-    <!-- ═══════════════════════════════════════════ -->
-    <!-- APP SCREEN                                 -->
-    <!-- ═══════════════════════════════════════════ -->
     <div id="app-screen" class="screen hidden">
         <!-- Sidebar -->
         <aside id="sidebar">
             <div class="sidebar-header">
                 <h2>GraphRAG</h2>
                 <span id="user-role" class="badge"></span>
+                <button id="theme-toggle" class="btn btn-sm theme-toggle-btn" title="Переключить тему">🌙</button>
             </div>
             <nav>
                 <button class="nav-btn active" data-tab="chat">💬 Чат</button>
@@ -193,7 +191,7 @@
                 <button class="nav-btn" data-tab="infra" data-min-role="admin">🏗️ Инфраструктура</button>
             </nav>
             <div class="sidebar-footer">
-                <span id="user-email"></span>
+                <span id="user-email" class="user-email-text"></span>
                 <button id="logout-btn" class="btn btn-sm">Выйти</button>
             </div>
         </aside>
@@ -301,11 +299,12 @@
                     <!-- List Sub-Tab -->
                     <div class="docstab-card" id="docstab-list">
                         <!-- Graph Stats -->
-                        <div id="graph-stats" class="stats-panel" style="display:flex;gap:1rem;flex-wrap:wrap;font-size:0.85rem;color:var(--text-muted);margin-bottom:0.5rem;">
+                        <div id="graph-stats" class="stats-panel" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;font-size:0.85rem;color:var(--text-muted);margin-bottom:0.5rem;">
                             <span>📊 Узлы: —</span>
                             <span>🔗 Связи: —</span>
                             <span>📄 Документы: —</span>
                             <span>🧩 Сущности: —</span>
+                            <button id="clear-all-btn" class="btn btn-sm" style="margin-left:auto;color:var(--error);border-color:var(--error);" title="Удалить ВСЕ документы, граф, векторы и S3">🗑️ Очистить всё</button>
                         </div>
 
                         <!-- Docs Toolbar -->
@@ -369,6 +368,7 @@
                     <div class="ingest-type-selector">
                         <button class="ingest-type-btn active" data-admintab="users">👥 Пользователи</button>
                         <button class="ingest-type-btn" data-admintab="departments">🏢 Отделы</button>
+                        <button class="ingest-type-btn" data-admintab="settings">⚙️ Настройки</button>
                     </div>
 
                     <!-- Users Admin Card -->
@@ -468,6 +468,24 @@
                             </table>
                         </div>
                     </div>
+
+                    <!-- Settings Admin Card -->
+                    <div class="admintab-card" id="admintab-settings">
+                        <div class="admin-page">
+                            <div class="admin-sidebar" id="admin-sidebar"></div>
+                            <div class="admin-content">
+                                <div id="admin-settings-panel">
+                                    <p style="color:var(--text-muted);padding:20px 0;">⏳ Загрузка настроек...</p>
+                                </div>
+                                <div id="admin-history-container" style="display:none;"></div>
+                                <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
+                                    <button id="admin-save-btn" class="admin-save-btn">💾 Сохранить все</button>
+                                </div>
+                                <div id="admin-history-panel" style="display:none;margin-top:20px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 

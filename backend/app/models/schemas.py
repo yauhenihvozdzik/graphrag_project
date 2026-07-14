@@ -1,6 +1,6 @@
 """Pydantic schemas for API request/response models.
 
-Covers auth, chat, ingestion, and graph visualization endpoints.
+Covers auth, chat, ingestion, graph visualization, and admin settings endpoints.
 """
 
 import re
@@ -229,6 +229,68 @@ class HealthResponse(BaseResponse):
     version: str
     environment: str
     services: dict[str, str] = Field(default_factory=dict)
+
+
+# ── Admin Settings Schemas ──
+
+
+class AdminSettingCreate(BaseModel):
+    """Schema for creating a new admin setting."""
+
+    category: str = Field(..., description="Категория настройки (prompts, llm_temperature, …)")
+    key: str = Field(..., min_length=1, max_length=128, description="Ключ настройки")
+    value: Any = Field(..., description="Значение (будет JSON-сериализовано)")
+    description: Optional[str] = Field(default=None, max_length=500, description="Описание")
+
+
+class AdminSettingUpdate(BaseModel):
+    """Schema for updating an existing admin setting."""
+
+    value: Any = Field(..., description="Новое значение (будет JSON-сериализовано)")
+    description: Optional[str] = Field(default=None, max_length=500, description="Описание")
+
+
+class AdminSettingsUpdateRequest(BaseModel):
+    """Bulk-update body: wraps the list of settings in a named field."""
+
+    settings: list[AdminSettingUpdate]
+
+
+class AdminSettingResponse(BaseModel):
+    """Schema for a single admin setting in API responses."""
+
+    id: int
+    category: str
+    key: str
+    value: Any
+    description: Optional[str] = None
+    is_active: bool = True
+    updated_at: datetime
+
+
+class AdminSettingsCategory(BaseModel):
+    """Settings grouped within a single category."""
+
+    category: str
+    settings: list[AdminSettingResponse]
+
+
+class AdminSettingsAll(BaseModel):
+    """All settings grouped by category."""
+
+    categories: dict[str, list[AdminSettingResponse]]
+
+
+class AdminSettingsHistory(BaseModel):
+    """Single audit record in settings history."""
+
+    id: int
+    setting_key: str
+    category: str
+    old_value: Any
+    new_value: Any
+    changed_at: datetime
+    changed_by: Optional[str] = None
 
 
 # ── Department Schemas ──

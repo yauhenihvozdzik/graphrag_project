@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Построение защищенной платформы мультимодального анализа корпоративных знаний — Защита</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk&family=Inter&family=JetBrains+Mono&display=swap');
+.font-space { font-family: 'Space Grotesk', 'Century Gothic', Arial, sans-serif; }
+.font-inter { font-family: 'Inter', Arial, 'Helvetica Neue', sans-serif; }
+.font-mono { font-family: 'JetBrains Mono', 'Courier New', monospace; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #1A1A2E; }
+#presentation { width: 100vw; height: 100vh; overflow: hidden; position: relative; }
+#slides-track { display: flex; height: 100%; transition: transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94); will-change: transform; }
+.slide { min-width: 100vw; width: 100vw; height: 100vh; flex-shrink: 0; overflow: hidden; position: relative; }
+.slide-inner { width: 100%; height: 100%; overflow: hidden; }
+.nav-hint { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100;
+  display: flex; gap: 16px; align-items: center; background: rgba(26, 26, 46, 0.85);
+  border: 1px solid #2A2F4A; border-radius: 40px; padding: 8px 24px; backdrop-filter: blur(8px); transition: opacity 0.6s; }
+.nav-hint.hidden { opacity: 0; pointer-events: none; }
+.nav-hint span { font-family: 'Inter', Arial, sans-serif; font-size: 0.9rem; color: #A8B8C8; }
+.nav-hint .key { display: inline-block; background: #232742; border: 1px solid #4FC3F7; border-radius: 6px;
+  padding: 3px 10px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #4FC3F7; margin: 0 3px; }
+.nav-hint .page-indicator { font-family: 'Space Grotesk', sans-serif; font-size: 1rem; color: #F1FAEE; min-width: 60px; text-align: center; }
+.card { background: #232742; border-radius: 12px; overflow: hidden; }
+.card-header { padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+.card-body { padding: 24px; flex: 1; }
+.tag { display: inline-block; padding: 6px 16px; border-radius: 20px; border: 1px solid #4FC3F7; color: #4FC3F7; font-size: 1rem; }
+.tag-orange { border-color: #FD652D; color: #FD652D; }
+.tag-green { border-color: #4ADE80; color: #4ADE80; }
+.tag-yellow { border-color: #FFC300; color: #FFC300; }
+.pipeline-step { background: #232742; border: 1px solid #4FC3F7; border-radius: 10px; padding: 16px; }
+.pipeline-step-green { border-color: #4ADE80; }
+.pipeline-step-orange { border-color: #FD652D; }
+.code-block { background: #0E1424; border-radius: 8px; padding: 16px; overflow: hidden; }
+</style>
+</head>
+<body>
+<div id="presentation">
+<div id="slides-track">
+
+<!-- SLIDE 1: Титул -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-row" style="background:#1A1A2E">
+<div class="flex flex-col justify-center px-24 gap-8" style="flex:5">
+<p class="font-inter text-2xl tracking-widest font-bold" style="color:#FD652D">ЗАЩИТА ВЫПУСКНОЙ РАБОТЫ</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3.8rem;color:#F1FAEE">Защищенная платформа<br>интеллектуального анализа<br>корпоративных знаний</h1>
+<h2 class="font-space font-bold" style="font-size:2.4rem;color:#4FC3F7">Гибридный GraphRAG · LangGraph · RBAC на уровне СУБД</h2>
+<div class="flex flex-row gap-4 flex-wrap mt-2">
+<div class="tag">GraphRAG</div><div class="tag">LangGraph</div><div class="tag-green">RBAC на уровне СУБД</div><div class="tag-orange">Air-Gapped</div>
+</div>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8;margin-top:16px">Юридический домен · 152-ФЗ · Полная автономность · 13 Docker-сервисов</p>
+</div>
+<div style="width:4px; background:#FD652D; flex:none"></div>
+<div class="flex-none overflow-hidden" style="flex:4;background:linear-gradient(135deg,#1A1A2E,#2A2F4A);display:flex;align-items:center;justify-content:center">
+<div class="text-center px-12">
+<p class="font-space font-bold" style="font-size:5rem;color:#4FC3F7">Graph</p>
+<p class="font-space font-bold" style="font-size:3rem;color:#FD652D;margin-top:-12px">RAG</p>
+<div class="flex flex-row gap-4 justify-center mt-8">
+<i data-lucide="database" style="width:2.5rem;height:2.5rem;color:#4ADE80"></i>
+<i data-lucide="network" style="width:2.5rem;height:2.5rem;color:#4FC3F7"></i>
+<i data-lucide="shield-check" style="width:2.5rem;height:2.5rem;color:#FFC300"></i>
+<i data-lucide="cpu" style="width:2.5rem;height:2.5rem;color:#FD652D"></i>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 2: Проблематика и актуальность -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-12 pb-4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.3rem;color:#FD652D">01 · АКТУАЛЬНОСТЬ</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3rem;color:#F1FAEE">Почему GraphRAG? Три вызова для корпоративного ИИ</h1>
+</div>
+<div class="flex flex-row gap-8 px-20 flex-1 min-h-0 pb-12">
+<div class="card flex-1 flex flex-col" style="border-top:3px solid #FD652D">
+<div class="card-body flex flex-col gap-4">
+<i data-lucide="cloud-off" style="width:2.5rem;height:2.5rem;color:#FD652D"></i>
+<h2 class="font-space font-bold" style="font-size:1.8rem;color:#F1FAEE">Зависимость от облачных API</h2>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">OpenAI, Anthropic и др. — данные уходят за пределы контура.</p>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">152-ФЗ «О персональных данных» и 98-ФЗ «О коммерческой тайне» <span style="color:#FD652D">требуют изоляции</span>.</p>
+</div>
+</div>
+<div class="card flex-1 flex flex-col" style="border-top:3px solid #FFC300">
+<div class="card-body flex flex-col gap-4">
+<i data-lucide="unlink" style="width:2.5rem;height:2.5rem;color:#FFC300"></i>
+<h2 class="font-space font-bold" style="font-size:1.8rem;color:#F1FAEE">Потеря связей в vector-RAG</h2>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Чанки документов теряют семантику связей.</p>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">«Статья 152-ФЗ ссылается на статью 5» — <span style="color:#FFC300">стандартный RAG этого не знает</span>.</p>
+</div>
+</div>
+<div class="card flex-1 flex flex-col" style="border-top:3px solid #4ADE80">
+<div class="card-body flex flex-col gap-4">
+<i data-lucide="shield-alert" style="width:2.5rem;height:2.5rem;color:#4ADE80"></i>
+<h2 class="font-space font-bold" style="font-size:1.8rem;color:#F1FAEE">Безопасность знаний</h2>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">PII-утечки, prompt injection, отсутствие аудита.</p>
+<p class="font-inter" style="font-size:1.3rem;color:#A8B8C8">Нужен <span style="color:#4ADE80">RBAC на уровне самих данных</span>, не только API.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 3: Цели проекта -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-12 pb-6">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.3rem;color:#FD652D">02 · ЦЕЛЬ</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3rem;color:#F1FAEE">Создать полностью автономную GraphRAG-платформу</h1>
+</div>
+<div class="flex flex-row gap-10 px-20 flex-1 min-h-0 items-center pb-12">
+<div class="flex flex-col gap-6" style="flex:3">
+<div class="flex flex-row items-center gap-4"><div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" style="background:#4FC3F7"><span class="font-space font-bold" style="color:#1A1A2E;font-size:1.3rem">1</span></div><p class="font-inter" style="font-size:1.5rem;color:#F1FAEE">Гибридный поиск: вектор + граф знаний</p></div>
+<div class="flex flex-row items-center gap-4"><div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" style="background:#4ADE80"><span class="font-space font-bold" style="color:#1A1A2E;font-size:1.3rem">2</span></div><p class="font-inter" style="font-size:1.5rem;color:#F1FAEE">Многоуровневый RBAC на уровне узлов графа и векторных индексов</p></div>
+<div class="flex flex-row items-center gap-4"><div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" style="background:#FFC300"><span class="font-space font-bold" style="color:#1A1A2E;font-size:1.3rem">3</span></div><p class="font-inter" style="font-size:1.5rem;color:#F1FAEE">100% локальные модели — ноль внешних API</p></div>
+<div class="flex flex-row items-center gap-4"><div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" style="background:#FD652D"><span class="font-space font-bold" style="color:#1A1A2E;font-size:1.3rem">4</span></div><p class="font-inter" style="font-size:1.5rem;color:#F1FAEE">Enterprise observability: Prometheus + Grafana + Jaeger</p></div>
+<div class="flex flex-row items-center gap-4"><div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" style="background:#6B7B8B"><span class="font-space font-bold" style="color:#1A1A2E;font-size:1.3rem">5</span></div><p class="font-inter" style="font-size:1.5rem;color:#F1FAEE">LangGraph — конечный автомат вместо линейных скриптов</p></div>
+</div>
+<div class="card" style="flex:2">
+<div class="card-body flex flex-col gap-4 justify-center items-center text-center">
+<i data-lucide="target" style="width:4rem;height:4rem;color:#FD652D"></i>
+<p class="font-space font-bold" style="font-size:2.5rem;color:#F1FAEE">Ключевое решение</p>
+<p class="font-inter" style="font-size:1.5rem;color:#A8B8C8">Плоскость управления (FastAPI + LangGraph)<br>отделена от плоскости данных<br>(4 независимых хранилища)</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 4: Архитектура -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-10 pb-4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.3rem;color:#FD652D">03 · АРХИТЕКТУРА</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3rem;color:#F1FAEE">C4 Model: Плоскость управления + Плоскость данных</h1>
+</div>
+<div class="flex flex-row gap-6 px-16 flex-1 min-h-0 pb-8">
+<div class="flex flex-col gap-4" style="flex:3">
+<div style="border:2px dashed #FD652D;border-radius:12px;padding:20px" class="flex flex-col gap-4">
+<p class="font-space font-bold text-center" style="font-size:1.4rem;color:#FD652D">Плоскость управления</p>
+<div class="grid gap-3" style="grid-template-columns:1fr 1fr 1fr">
+<div class="pipeline-step text-center"><p class="font-space font-bold" style="font-size:1.2rem;color:#4FC3F7">FastAPI</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">REST API · JWT · 13 эндпоинтов</p></div>
+<div class="pipeline-step text-center"><p class="font-space font-bold" style="font-size:1.2rem;color:#4FC3F7">LangGraph</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">State machine · classify → retrieve</p></div>
+<div class="pipeline-step pipeline-step-green text-center"><p class="font-space font-bold" style="font-size:1.2rem;color:#4ADE80">Guardrails</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">PII · Injection · Input/Output</p></div>
+</div>
+</div>
+<svg width="100%" height="20" class="flex justify-center"><line x1="50%" y1="0" x2="50%" y2="20" stroke="#4FC3F7" stroke-width="2"/><polygon points="48%,14 54%,14 50%,20" fill="#4FC3F7"/></svg>
+<div style="border:2px dashed #4FC3F7;border-radius:12px;padding:20px" class="flex flex-col gap-4">
+<p class="font-space font-bold text-center" style="font-size:1.4rem;color:#4FC3F7">Плоскость данных — 4 независимых хранилища</p>
+<div class="grid gap-3" style="grid-template-columns:1fr 1fr 1fr 1fr">
+<div class="pipeline-step"><p class="font-space font-bold" style="font-size:1.2rem;color:#F1FAEE">PostgreSQL</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">Пользователи · Сессии · Checkpoints</p></div>
+<div class="pipeline-step"><p class="font-space font-bold" style="font-size:1.2rem;color:#F1FAEE">Neo4j</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">Граф знаний: Doc → Chunk → Entity</p></div>
+<div class="pipeline-step pipeline-step-orange"><p class="font-space font-bold" style="font-size:1.2rem;color:#F1FAEE">Qdrant</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">Векторы 1024-dim · RBAC payload</p></div>
+<div class="pipeline-step pipeline-step-green"><p class="font-space font-bold" style="font-size:1.2rem;color:#F1FAEE">MinIO</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">S3: оригиналы + текст</p></div>
+</div>
+</div>
+</div>
+<div class="card flex flex-col" style="flex:2">
+<div class="card-body flex flex-col gap-4">
+<p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">Сетевая сегментация</p>
+<div class="flex flex-col gap-3">
+<div class="pipeline-step"><p class="font-space font-bold" style="font-size:1.2rem;color:#F1FAEE">DMZ (172.20.0.0/24)</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">Frontend · Grafana</p></div>
+<div class="pipeline-step pipeline-step-green"><p class="font-space font-bold" style="font-size:1.2rem;color:#F1FAEE">Internal (172.21.0.0/24)</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">Backend · БД · Ollama · MinIO</p></div>
+</div>
+<p class="font-inter" style="font-size:1.1rem;color:#6B7B8B;margin-top:8px">Внешний доступ к БД — только через backend</p>
+<div class="mt-auto flex flex-col gap-3">
+<p class="font-space font-bold" style="font-size:1.3rem;color:#F1FAEE">Почему LangGraph?</p>
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">✓ Динамическое ветвление (graph vs vector)</p>
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">✓ Stateful контекст с AccessContext</p>
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">✓ PostgreSQL checkpointing</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 5: Технологический стек -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-10 pb-4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.3rem;color:#FD652D">04 · ТЕХНИЧЕСКИЙ СТЕК</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3rem;color:#F1FAEE">Выбор продиктован RTX 4060 8GB и air-gap</h1>
+</div>
+<div class="flex flex-row gap-8 px-16 flex-1 min-h-0 pb-10">
+<div class="card flex-col flex-none overflow-hidden" style="flex:3">
+<table class="w-full h-full" style="border-collapse:collapse">
+<thead><tr style="background:#232742">
+<th class="text-left px-6 py-3"><p class="font-space font-bold" style="font-size:1.3rem;color:#F1FAEE">Компонент</p></th>
+<th class="text-left px-6 py-3"><p class="font-space font-bold" style="font-size:1.3rem;color:#F1FAEE">Выбор</p></th>
+<th class="text-left px-6 py-3"><p class="font-space font-bold" style="font-size:1.3rem;color:#F1FAEE">Обоснование</p></th>
+</tr></thead>
+<tbody>
+<tr style="border-top:1px solid #2A2F4A"><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#F1FAEE">LLM</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#4FC3F7">qwen2.5:7b Q4_K_M</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">4.5 GB VRAM, русский язык</p></td></tr>
+<tr style="border-top:1px solid #2A2F4A"><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#F1FAEE">Embedding</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#4FC3F7">bge-m3 (1024-dim)</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">CPU inference, 8192 ctx, multilingual</p></td></tr>
+<tr style="border-top:1px solid #2A2F4A"><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#F1FAEE">Serving</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#4FC3F7">Ollama</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">Windows native, overhead 0.5 GB</p></td></tr>
+<tr style="border-top:1px solid #2A2F4A"><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#F1FAEE">Vector DB</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#4FC3F7">Qdrant</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">Rust, payload filtering в HNSW</p></td></tr>
+<tr style="border-top:1px solid #2A2F4A"><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#F1FAEE">Graph DB</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#4FC3F7">Neo4j 5 Community</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">Cypher, 25+ лет зрелости</p></td></tr>
+<tr style="border-top:1px solid #2A2F4A"><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#F1FAEE">Orchestration</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#4FC3F7">LangGraph</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">Stateful, ветвление, checkpointing</p></td></tr>
+<tr style="border-top:1px solid #2A2F4A"><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#F1FAEE">Migrations</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#4FC3F7">Alembic</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">Транзакционный DDL, без гонок</p></td></tr>
+<tr style="border-top:1px solid #2A2F4A"><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#F1FAEE">Storage</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.2rem;color:#4FC3F7">MinIO (S3)</p></td><td class="px-6 py-3"><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">Оригиналы + извлечённый текст</p></td></tr>
+</tbody></table>
+</div>
+<div class="card flex flex-col" style="flex:2">
+<div class="card-body flex flex-col gap-4">
+<p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">VRAM Budget (RTX 4060 8GB)</p>
+<div class="flex flex-col gap-2">
+<div class="flex flex-row rounded overflow-hidden" style="height:36px">
+<div style="flex:56;background:#FD652D"></div><div style="flex:14;background:#4FC3F7"></div>
+<div style="flex:18;background:#FFC300"></div><div style="flex:12;background:#6B7B8B"></div>
+</div>
+<div class="flex flex-row gap-3 flex-wrap">
+<div class="flex flex-row items-center gap-2"><div style="width:12px;height:12px;background:#FD652D;border-radius:2px"></div><p class="font-inter" style="font-size:1rem;color:#A8B8C8">Qwen 2.5 56%</p></div>
+<div class="flex flex-row items-center gap-2"><div style="width:12px;height:12px;background:#4FC3F7;border-radius:2px"></div><p class="font-inter" style="font-size:1rem;color:#A8B8C8">bge-m3 14%</p></div>
+<div class="flex flex-row items-center gap-2"><div style="width:12px;height:12px;background:#FFC300;border-radius:2px"></div><p class="font-inter" style="font-size:1rem;color:#A8B8C8">KV-cache 18%</p></div>
+<div class="flex flex-row items-center gap-2"><div style="width:12px;height:12px;background:#6B7B8B;border-radius:2px"></div><p class="font-inter" style="font-size:1rem;color:#A8B8C8">Резерв 12%</p></div>
+</div>
+</div>
+<p class="font-inter font-bold" style="font-size:1.2rem;color:#4ADE80;margin-top:12px">✓ Полностью offline</p>
+<p class="font-inter font-bold" style="font-size:1.2rem;color:#4ADE80">✓ Ноль внешних API</p>
+<p class="font-inter font-bold" style="font-size:1.2rem;color:#4ADE80">✓ All-in-one docker compose up</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 6: GraphRAG Pipeline -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-10 pb-4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.3rem;color:#FD652D">05 · GRAPHRAG PIPELINE</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3rem;color:#F1FAEE">От документа к ответу за 4 этапа</h1>
+</div>
+<div class="flex flex-row px-16 flex-1 min-h-0 pb-6 items-center gap-4">
+<div class="flex flex-col items-center gap-2" style="flex:1">
+<div class="pipeline-step w-full"><div class="flex flex-row items-center gap-2 mb-2"><i data-lucide="file-text" style="width:1.5rem;height:1.5rem;color:#4FC3F7"></i><p class="font-inter" style="font-size:1rem;color:#6B7B8B">Этап 1</p></div><p class="font-space font-bold" style="font-size:1.3rem;color:#F1FAEE">Импорт</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">PDF/DOCX/TXT/ZIP</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">MinIO S3 · SHA-256</p></div>
+<svg width="4" height="16"><line x1="2" y1="0" x2="2" y2="16" stroke="#4FC3F7" stroke-width="2"/><polygon points="-2,11 6,11 2,16" fill="#4FC3F7"/></svg>
+<div class="pipeline-step w-full"><div class="flex flex-row items-center gap-2 mb-2"><i data-lucide="scissors" style="width:1.5rem;height:1.5rem;color:#4FC3F7"></i><p class="font-inter" style="font-size:1rem;color:#6B7B8B">Этап 2</p></div><p class="font-space font-bold" style="font-size:1.3rem;color:#F1FAEE">Чанкинг + NER</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">512T · overlap 64</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">Rule-based NER (LAW, COURT, ORG)</p></div>
+<svg width="4" height="16"><line x1="2" y1="0" x2="2" y2="16" stroke="#4FC3F7" stroke-width="2"/><polygon points="-2,11 6,11 2,16" fill="#4FC3F7"/></svg>
+<div class="flex flex-row gap-3 w-full">
+<div class="pipeline-step flex-1"><p class="font-space font-bold" style="font-size:1.2rem;color:#4ADE80">3a: Neo4j</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">Entity ID = SHA-256</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">Cypher RBAC filter</p></div>
+<div class="pipeline-step pipeline-step-orange flex-1"><p class="font-space font-bold" style="font-size:1.2rem;color:#FD652D">3b: Qdrant</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">bge-m3 · 1024-dim</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">UUID5 · batch 64</p></div>
+</div>
+<svg width="4" height="16"><line x1="2" y1="0" x2="2" y2="16" stroke="#4FC3F7" stroke-width="2"/><polygon points="-2,11 6,11 2,16" fill="#4FC3F7"/></svg>
+<div class="pipeline-step pipeline-step-green w-full"><div class="flex flex-row items-center gap-2 mb-2"><i data-lucide="layers" style="width:1.5rem;height:1.5rem;color:#4ADE80"></i><p class="font-inter" style="font-size:1rem;color:#6B7B8B">Этап 4</p></div><p class="font-space font-bold" style="font-size:1.3rem;color:#4ADE80">Hybrid Retriever</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">Cypher subgraph + Top-K semantic</p></div>
+</div>
+<div class="card flex flex-col" style="flex:2;height:fit-content">
+<div class="code-block mt-4">
+<pre class="font-mono" style="font-size:1.1rem;color:#A8B8C8;line-height:1.7"><span style="color:#FFC300">MATCH</span> (e:Entity {name: $name})-[r]-(n)
+<span style="color:#FFC300">WHERE</span> n.clearance_level <= $user_clearance
+  <span style="color:#FFC300">AND</span> n.department = $user_department
+<span style="color:#FFC300">RETURN</span> e, r, n</pre>
+</div>
+<p class="font-inter text-center mt-3" style="font-size:1rem;color:#6B7B8B">Фильтрация на уровне СУБД — LLM не видит запрещённые узлы</p>
+<div class="grid gap-3 mt-6" style="grid-template-columns:1fr 1fr">
+<div class="pipeline-step text-center"><p class="font-space font-bold" style="font-size:1.5rem;color:#FD652D">512</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">токенов/чанк</p></div>
+<div class="pipeline-step text-center"><p class="font-space font-bold" style="font-size:1.5rem;color:#4FC3F7">1024</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">dim bge-m3</p></div>
+<div class="pipeline-step text-center"><p class="font-space font-bold" style="font-size:1.5rem;color:#4ADE80">64</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">текстов/batch</p></div>
+<div class="pipeline-step text-center"><p class="font-space font-bold" style="font-size:1.5rem;color:#FFC300">hybrid</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">стратегия</p></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 7: LangGraph агент -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-10 pb-4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.3rem;color:#FD652D">06 · LANGGRAPH ORCHESTRATION</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3rem;color:#F1FAEE">Конечный автомат вместо линейного пайплайна</h1>
+</div>
+<div class="flex flex-row gap-8 px-16 flex-1 min-h-0 pb-8">
+<div class="flex flex-col items-center gap-1" style="flex:3">
+<div class="pipeline-step" style="width:240px;text-align:center"><p class="font-space font-bold" style="font-size:1.2rem;color:#A8B8C8">User Query</p></div>
+<svg width="4" height="20"><line x1="2" y1="0" x2="2" y2="20" stroke="#6B7B8B" stroke-width="2"/><polygon points="-2,15 6,15 2,20" fill="#6B7B8B"/></svg>
+<div class="pipeline-step" style="width:260px;text-align:center;border-color:#FFC300"><p class="font-space font-bold" style="font-size:1.2rem;color:#FFC300">Input Guardrails</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">PII · Injection detect</p></div>
+<svg width="4" height="20"><line x1="2" y1="0" x2="2" y2="20" stroke="#4FC3F7" stroke-width="2"/><polygon points="-2,15 6,15 2,20" fill="#4FC3F7"/></svg>
+<div class="pipeline-step" style="width:260px;text-align:center"><p class="font-space font-bold" style="font-size:1.2rem;color:#4FC3F7">Router Agent</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">classify → requires_graph?</p></div>
+<div class="flex flex-row gap-8 mt-1">
+<div class="flex flex-col items-center gap-1">
+<svg width="4" height="16"><line x1="2" y1="0" x2="2" y2="16" stroke="#4ADE80" stroke-width="2"/><polygon points="-2,11 6,11 2,16" fill="#4ADE80"/></svg>
+<div class="pipeline-step pipeline-step-green" style="width:200px;text-align:center"><p class="font-space font-bold" style="font-size:1.1rem;color:#4ADE80">RBAC Filter</p><p class="font-inter" style="font-size:0.9rem;color:#A8B8C8">Cypher WHERE</p></div>
+</div>
+<div class="flex flex-col items-center gap-1">
+<svg width="4" height="16"><line x1="2" y1="0" x2="2" y2="16" stroke="#4FC3F7" stroke-width="2"/><polygon points="-2,11 6,11 2,16" fill="#4FC3F7"/></svg>
+<div class="pipeline-step" style="width:200px;text-align:center"><p class="font-space font-bold" style="font-size:1.1rem;color:#4FC3F7">Hybrid Retriever</p><p class="font-inter" style="font-size:0.9rem;color:#A8B8C8">Graph + Vector</p></div>
+</div>
+</div>
+<svg width="4" height="16"><line x1="2" y1="0" x2="2" y2="16" stroke="#FD652D" stroke-width="2"/><polygon points="-2,11 6,11 2,16" fill="#FD652D"/></svg>
+<div class="pipeline-step pipeline-step-orange" style="width:260px;text-align:center"><p class="font-space font-bold" style="font-size:1.2rem;color:#FD652D">LLM Generate</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">qwen2.5:7b · SSE stream</p></div>
+<svg width="4" height="16"><line x1="2" y1="0" x2="2" y2="16" stroke="#FFC300" stroke-width="2"/><polygon points="-2,11 6,11 2,16" fill="#FFC300"/></svg>
+<div class="pipeline-step" style="width:260px;text-align:center;border-color:#FFC300"><p class="font-space font-bold" style="font-size:1.2rem;color:#FFC300">Output Guardrails</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">PII mask · grounding check</p></div>
+<svg width="4" height="16"><line x1="2" y1="0" x2="2" y2="16" stroke="#6B7B8B" stroke-width="2"/><polygon points="-2,11 6,11 2,16" fill="#6B7B8B"/></svg>
+<div class="pipeline-step" style="width:240px;text-align:center"><p class="font-space font-bold" style="font-size:1.2rem;color:#A8B8C8">Verified Answer</p></div>
+<p class="font-inter text-center mt-2" style="font-size:1rem;color:#6B7B8B">Conditional edges: низкая уверенность → re-route на retrieval</p>
+</div>
+<div class="card flex flex-col" style="flex:2">
+<div class="code-block" style="flex:1">
+<pre class="font-mono" style="font-size:1.05rem;color:#A8B8C8;line-height:1.6">
+<span style="color:#6B7B8B"># LangGraph state machine</span>
+<span style="color:#4FC3F7">graph</span> = StateGraph(AgentState)
+
+<span style="color:#4FC3F7">graph</span>.add_node(<span style="color:#FFC300">"guard_in"</span>,  input_guardrails)
+<span style="color:#4FC3F7">graph</span>.add_node(<span style="color:#4ADE80">"router"</span>,   router_agent)
+<span style="color:#4FC3F7">graph</span>.add_node(<span style="color:#4ADE80">"rbac"</span>,     rbac_filter)
+<span style="color:#4FC3F7">graph</span>.add_node(<span style="color:#4ADE80">"retrieve"</span>, hybrid_retriever)
+<span style="color:#4FC3F7">graph</span>.add_node(<span style="color:#FD652D">"generate"</span>, llm_generate)
+<span style="color:#4FC3F7">graph</span>.add_node(<span style="color:#FFC300">"guard_out"</span>, output_guardrails)
+
+<span style="color:#6B7B8B"># Условные рёбра:</span>
+<span style="color:#4FC3F7">graph</span>.add_conditional_edges(
+  <span style="color:#4ADE80">"router"</span>, choose_strategy,
+  {<span style="color:#4ADE80">"graph"</span>: <span style="color:#4ADE80">"rbac"</span>, <span style="color:#4ADE80">"vector"</span>: <span style="color:#4ADE80">"retrieve"</span>}
+)
+<span style="color:#4FC3F7">graph</span>.add_conditional_edges(
+  <span style="color:#4ADE80">"generate"</span>, check_confidence,
+  {<span style="color:#4ADE80">"low"</span>: <span style="color:#4ADE80">"router"</span>, <span style="color:#4ADE80">"ok"</span>: <span style="color:#FFC300">"guard_out"</span>}
+)</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 8: Безопасность -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-10 pb-4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.3rem;color:#FD652D">07 · БЕЗОПАСНОСТЬ</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3rem;color:#F1FAEE">Трёхкомпонентный RBAC + двухуровневые Guardrails</h1>
+</div>
+<div class="flex flex-row gap-8 px-16 flex-1 min-h-0 pb-8">
+<div class="card flex-1 flex flex-col" style="border-top:3px solid #4ADE80">
+<div class="card-header" style="background:#1A3A2A"><i data-lucide="key-round" style="width:1.8rem;height:1.8rem;color:#4ADE80"></i><p class="font-space font-bold" style="font-size:1.3rem;color:#4ADE80">RBAC — трёхкомпонентный</p></div>
+<div class="card-body flex flex-col gap-3">
+<div class="pipeline-step"><p class="font-space font-bold" style="font-size:1.1rem;color:#F1FAEE">Роль</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">admin · analyst · viewer</p></div>
+<div class="pipeline-step"><p class="font-space font-bold" style="font-size:1.1rem;color:#F1FAEE">Отдел</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">legal · research · 8 отделов</p></div>
+<div class="pipeline-step"><p class="font-space font-bold" style="font-size:1.1rem;color:#F1FAEE">Уровень доступа</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">0=public · 1=internal · 2=conf · 3=secret</p></div>
+<p class="font-inter" style="font-size:1rem;color:#6B7B8B;margin-top:4px">Применение на 3 уровнях:</p>
+<p class="font-inter" style="font-size:1rem;color:#A8B8C8">1) API middleware (JWT claims)</p>
+<p class="font-inter" style="font-size:1rem;color:#A8B8C8">2) Cypher WHERE (Neo4j)</p>
+<p class="font-inter" style="font-size:1rem;color:#A8B8C8">3) Qdrant payload filter</p>
+<p class="font-inter font-bold" style="font-size:1.1rem;color:#4ADE80">Admin → bypass всех фильтров</p>
+</div>
+</div>
+<div class="flex flex-col gap-4 flex-1">
+<div class="card flex-1 flex flex-col" style="border-top:3px solid #FFC300">
+<div class="card-header" style="background:#3A3000"><i data-lucide="arrow-down-to-line" style="width:1.5rem;height:1.5rem;color:#FFC300"></i><p class="font-space font-bold" style="font-size:1.2rem;color:#FFC300">Двухуровневый PII-детектор</p></div>
+<div class="card-body"><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8"><span style="color:#FFC300">Tier 1:</span> Точные regex (ИНН, СНИЛС, паспорт, телефон, email, банк)</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8;margin-top:6px"><span style="color:#FFC300">Tier 2:</span> Нормализация пробелов → ловит evasion «1 2 3 4 5 6 7 8 9 0»</p></div>
+</div>
+<div class="card flex-1 flex flex-col" style="border-top:3px solid #FD652D">
+<div class="card-header" style="background:#3A1A1A"><i data-lucide="shield" style="width:1.5rem;height:1.5rem;color:#FD652D"></i><p class="font-space font-bold" style="font-size:1.2rem;color:#FD652D">Prompt Injection</p></div>
+<div class="card-body"><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">16 паттернов: RU + EN</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8;margin-top:4px">Делимитеры: ```system, [SYSTEM], <|im_start|></p><p class="font-inter" style="font-size:1rem;color:#6B7B8B;margin-top:4px">Двусторонний контроль: вход + выход модели</p></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 9: Observability -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-10 pb-4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.3rem;color:#FD652D">08 · OBSERVABILITY</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3rem;color:#F1FAEE">Трассировка, метрики, дашборды</h1>
+</div>
+<div class="flex flex-row gap-6 px-16 flex-none pb-4">
+<div class="card flex-1" style="border-top:3px solid #4FC3F7"><div class="card-body"><p class="font-space font-bold" style="font-size:1.4rem;color:#4FC3F7">Jaeger</p><p class="font-inter" style="font-size:1.2rem;color:#A8B8C8;margin-top:8px">Distributed traces</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">LangGraph → Ollama → Qdrant → Neo4j</p></div></div>
+<div class="card flex-1" style="border-top:3px solid #FD652D"><div class="card-body"><p class="font-space font-bold" style="font-size:1.4rem;color:#FD652D">Prometheus</p><p class="font-inter" style="font-size:1.2rem;color:#A8B8C8;margin-top:8px">Метрики + NVML GPU</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">latency · tokens · guardrail_blocks</p></div></div>
+<div class="card flex-1" style="border-top:3px solid #4ADE80"><div class="card-body"><p class="font-space font-bold" style="font-size:1.4rem;color:#4ADE80">Grafana</p><p class="font-inter" style="font-size:1.2rem;color:#A8B8C8;margin-top:8px">Дашборды</p><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">SLO P95 < 12s · RBAC denials</p></div></div>
+</div>
+<div class="card mx-16 flex-1 min-h-0">
+<div class="card-body flex-1 flex flex-col"><p class="font-space font-bold" style="font-size:1.3rem;color:#F1FAEE;margin-bottom:12px">P95 Latency — мониторинг в реальном времени</p><div class="flex-1 min-h-0"><canvas id="latencyChart"></canvas></div></div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 10: Улучшения по рецензии -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-10 pb-4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.3rem;color:#FD652D">09 · УЛУЧШЕНИЯ ПО РЕЦЕНЗИИ</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:2.8rem;color:#F1FAEE">5 критических доработок production-уровня</h1>
+</div>
+<div class="flex flex-row gap-6 px-16 flex-1 min-h-0 pb-8 flex-wrap">
+<div class="card flex-1 min-w-0" style="border-top:3px solid #4FC3F7;flex-basis:45%">
+<div class="card-body flex flex-col gap-2"><div class="flex flex-row items-center gap-3"><span class="font-space font-bold" style="font-size:2rem;color:#4FC3F7">#1</span><p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">Alembic миграции</p></div><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">Замена SQLModel.create_all и сырых SQL на транзакционный DDL с fallback</p><div class="code-block mt-2"><pre class="font-mono" style="font-size:0.9rem;color:#A8B8C8"><span style="color:#4FC3F7">alembic</span> upgrade head
+→ 10 таблиц, включая alembic_version</pre></div></div>
+</div>
+<div class="card flex-1 min-w-0" style="border-top:3px solid #4ADE80;flex-basis:45%">
+<div class="card-body flex flex-col gap-2"><div class="flex flex-row items-center gap-3"><span class="font-space font-bold" style="font-size:2rem;color:#4ADE80">#2</span><p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">Точечный except</p></div><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">except Exception → HTTPException(409) + IntegrityError</p><div class="code-block mt-2"><pre class="font-mono" style="font-size:0.9rem;color:#A8B8C8"><span style="color:#FFC300">except</span> HTTPException:
+  <span style="color:#FFC300">if</span> e.status_code == <span style="color:#4ADE80">409</span>: <span style="color:#FFC300">continue</span>
+<span style="color:#FFC300">except</span> IntegrityError:
+  <span style="color:#FFC300">continue</span></pre></div></div>
+</div>
+<div class="card flex-1 min-w-0" style="border-top:3px solid #FFC300;flex-basis:45%">
+<div class="card-body flex flex-col gap-2"><div class="flex flex-row items-center gap-3"><span class="font-space font-bold" style="font-size:2rem;color:#FFC300">#3</span><p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">Batch эмбеддинги</p></div><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">for text in texts → один POST с массивом до 64 строк</p><div class="code-block mt-2"><pre class="font-mono" style="font-size:0.9rem;color:#A8B8C8">POST /api/embed
+{"input": [<span style="color:#4ADE80">"text1"</span>, <span style="color:#4ADE80">"text2"</span>, ..., <span style="color:#4ADE80">"text64"</span>]}</pre></div></div>
+</div>
+<div class="card flex-1 min-w-0" style="border-top:3px solid #FD652D;flex-basis:45%">
+<div class="card-body flex flex-col gap-2"><div class="flex flex-row items-center gap-3"><span class="font-space font-bold" style="font-size:2rem;color:#FD652D">#4</span><p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">Двухуровневый PII</p></div><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">Tier-1: точные regex · Tier-2: нормализация пробелов</p><div class="code-block mt-2"><pre class="font-mono" style="font-size:0.9rem;color:#A8B8C8"><span style="color:#4FC3F7">_normalise_whitespace</span>(text)
+→ ловит <span style="color:#4ADE80">"1 2 3 4  5 6 7 8 9 0"</span></pre></div></div>
+</div>
+<div class="card min-w-0 mx-auto" style="border-top:3px solid #6B7B8B;flex-basis:45%;max-width:600px">
+<div class="card-body flex flex-col gap-2"><div class="flex flex-row items-center gap-3"><span class="font-space font-bold" style="font-size:2rem;color:#6B7B8B">#5</span><p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">Асинхронная загрузка</p></div><p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">Синхронный open/write/fsync → asyncio.to_thread()</p><div class="code-block mt-2"><pre class="font-mono" style="font-size:0.9rem;color:#A8B8C8"><span style="color:#FFC300">await</span> asyncio.to_thread(
+  _sync_write <span style="color:#6B7B8B"># не блокирует event loop</span>
+)</pre></div></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 11: Тесты -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-10 pb-4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.3rem;color:#FD652D">10 · ТЕСТЫ</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3rem;color:#F1FAEE">64 теста · 100% pass · 0.45 секунды</h1>
+</div>
+<div class="flex flex-row gap-8 px-16 flex-1 min-h-0 pb-8">
+<div class="flex flex-col gap-4" style="flex:3">
+<div class="grid gap-4" style="grid-template-columns:1fr 1fr">
+<div class="card"><div class="card-body"><p class="font-space font-bold" style="font-size:1.3rem;color:#4FC3F7">test_api.py</p><p class="font-space font-bold" style="font-size:2.5rem;color:#F1FAEE">10</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">JWT · XSS · email · health</p></div></div>
+<div class="card"><div class="card-body"><p class="font-space font-bold" style="font-size:1.3rem;color:#4ADE80">test_rbac.py</p><p class="font-space font-bold" style="font-size:2.5rem;color:#F1FAEE">14</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">Роли · clearance · Cypher filter</p></div></div>
+<div class="card"><div class="card-body"><p class="font-space font-bold" style="font-size:1.3rem;color:#FFC300">test_guardrails.py</p><p class="font-space font-bold" style="font-size:2.5rem;color:#F1FAEE">9</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">PII · injection · output filter</p></div></div>
+<div class="card"><div class="card-body"><p class="font-space font-bold" style="font-size:1.3rem;color:#FD652D">test_llm_judge.py</p><p class="font-space font-bold" style="font-size:2.5rem;color:#F1FAEE">14</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">RBAC agent · prompts · injection</p></div></div>
+</div>
+<div class="card"><div class="card-body"><p class="font-space font-bold" style="font-size:1.3rem;color:#6B7B8B">test_graphrag.py</p><p class="font-space font-bold" style="font-size:2.5rem;color:#F1FAEE;display:inline">17</p><p class="font-inter ml-4" style="font-size:1rem;color:#A8B8C8;display:inline">Сущности · граф · векторы · чанкинг · схемы · конфигурация</p></div></div>
+</div>
+<div class="card flex flex-col" style="flex:2">
+<div class="card-body flex flex-col gap-4">
+<p class="font-space font-bold" style="font-size:1.3rem;color:#F1FAEE">Особенности</p>
+<div class="flex flex-col gap-3">
+<div class="pipeline-step pipeline-step-green"><p class="font-space font-bold" style="font-size:1.1rem;color:#4ADE80">LLM-as-Judge</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">Детерминированная оценка промптов — без реальной нейросети</p></div>
+<div class="pipeline-step"><p class="font-space font-bold" style="font-size:1.1rem;color:#4FC3F7">Мокирование</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">Тяжёлые БД замоканы → тесты в lightweight CI/CD</p></div>
+<div class="pipeline-step pipeline-step-orange"><p class="font-space font-bold" style="font-size:1.1rem;color:#FD652D">SSE runner</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">POST /api/v1/tests/run → стриминг результатов</p></div>
+</div>
+<div class="mt-4 p-4 rounded-lg" style="background:#0E1424">
+<p class="font-mono" style="font-size:1.1rem;color:#4ADE80">==============================</p>
+<p class="font-mono" style="font-size:1.1rem;color:#4ADE80">64 passed in 0.45s ✓</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 12: Результаты -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-10 pb-4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.3rem;color:#FD652D">11 · РЕЗУЛЬТАТЫ</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3rem;color:#F1FAEE">Все критерии выполнены с превышением</h1>
+</div>
+<div class="flex flex-row gap-8 px-16 flex-1 min-h-0 pb-8">
+<div class="flex flex-col gap-0 overflow-hidden" style="flex:3">
+<div class="grid gap-0" style="grid-template-columns:1fr 1fr;grid-template-rows:repeat(5,1fr)">
+<div class="flex flex-row items-center gap-4 py-4" style="border-bottom:1px solid #2A2F4A">
+<i data-lucide="check-circle-2" style="width:1.8rem;height:1.8rem;color:#4ADE80;flex-shrink:0"></i><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">Гибридный GraphRAG (Neo4j + Qdrant)</p></div>
+<div class="flex flex-row items-center gap-4 py-4" style="border-bottom:1px solid #2A2F4A;border-left:1px solid #2A2F4A;padding-left:20px">
+<i data-lucide="check-circle-2" style="width:1.8rem;height:1.8rem;color:#4ADE80;flex-shrink:0"></i><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">LangGraph stateful orchestration</p></div>
+<div class="flex flex-row items-center gap-4 py-4" style="border-bottom:1px solid #2A2F4A">
+<i data-lucide="check-circle-2" style="width:1.8rem;height:1.8rem;color:#4ADE80;flex-shrink:0"></i><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">RBAC на уровне СУБД (Cypher + Qdrant)</p></div>
+<div class="flex flex-row items-center gap-4 py-4" style="border-bottom:1px solid #2A2F4A;border-left:1px solid #2A2F4A;padding-left:20px">
+<i data-lucide="check-circle-2" style="width:1.8rem;height:1.8rem;color:#4ADE80;flex-shrink:0"></i><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">Input/Output Guardrails (PII + injection)</p></div>
+<div class="flex flex-row items-center gap-4 py-4" style="border-bottom:1px solid #2A2F4A">
+<i data-lucide="check-circle-2" style="width:1.8rem;height:1.8rem;color:#4ADE80;flex-shrink:0"></i><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">Полная автономность (air-gapped)</p></div>
+<div class="flex flex-row items-center gap-4 py-4" style="border-bottom:1px solid #2A2F4A;border-left:1px solid #2A2F4A;padding-left:20px">
+<i data-lucide="check-circle-2" style="width:1.8rem;height:1.8rem;color:#4ADE80;flex-shrink:0"></i><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">Русскоязычные модели (bge-m3 + qwen2.5)</p></div>
+<div class="flex flex-row items-center gap-4 py-4" style="border-bottom:1px solid #2A2F4A">
+<i data-lucide="check-circle-2" style="width:1.8rem;height:1.8rem;color:#4ADE80;flex-shrink:0"></i><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">Работа на RTX 4060 8GB VRAM</p></div>
+<div class="flex flex-row items-center gap-4 py-4" style="border-bottom:1px solid #2A2F4A;border-left:1px solid #2A2F4A;padding-left:20px">
+<i data-lucide="check-circle-2" style="width:1.8rem;height:1.8rem;color:#4ADE80;flex-shrink:0"></i><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">64 автоматических теста</p></div>
+<div class="flex flex-row items-center gap-4 py-4">
+<i data-lucide="check-circle-2" style="width:1.8rem;height:1.8rem;color:#4ADE80;flex-shrink:0"></i><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">Alembic миграции · Batch embeddings</p></div>
+<div class="flex flex-row items-center gap-4 py-4" style="border-left:1px solid #2A2F4A;padding-left:20px">
+<i data-lucide="check-circle-2" style="width:1.8rem;height:1.8rem;color:#4ADE80;flex-shrink:0"></i><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">Frontend (13 сервисов в Docker)</p></div>
+</div>
+</div>
+<div class="card flex flex-col" style="flex:2">
+<div class="card-body flex flex-col gap-4">
+<p class="font-space font-bold" style="font-size:1.3rem;color:#F1FAEE">Количественные метрики</p>
+<div class="grid gap-3" style="grid-template-columns:1fr 1fr">
+<div class="pipeline-step text-center"><p class="font-space font-bold" style="font-size:2rem;color:#FD652D">13</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">сервисов Docker</p></div>
+<div class="pipeline-step text-center"><p class="font-space font-bold" style="font-size:2rem;color:#4FC3F7">4</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">базы данных</p></div>
+<div class="pipeline-step text-center"><p class="font-space font-bold" style="font-size:2rem;color:#4ADE80">25+</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">API эндпоинтов</p></div>
+<div class="pipeline-step text-center"><p class="font-space font-bold" style="font-size:2rem;color:#FFC300">64</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">теста pass</p></div>
+<div class="pipeline-step text-center"><p class="font-space font-bold" style="font-size:2rem;color:#F1FAEE">4</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">роли доступа</p></div>
+<div class="pipeline-step text-center"><p class="font-space font-bold" style="font-size:2rem;color:#F1FAEE">2</p><p class="font-inter" style="font-size:1rem;color:#A8B8C8">сетевых сегмента</p></div>
+</div>
+<div class="mt-4 p-4 rounded-lg" style="background:#0E1424;text-align:center">
+<p class="font-inter font-bold" style="font-size:1.3rem;color:#4ADE80">Готово к эксплуатации в крупном контуре</p>
+<p class="font-inter" style="font-size:1rem;color:#A8B8C8;margin-top:8px">Домен: Юридический документооборот РФ<br>Соответствие: 152-ФЗ · 98-ФЗ</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 13: Демонстрация -->
+<div class="slide">
+<div class="slide-inner relative overflow-hidden flex flex-col" style="background:#1A1A2E">
+<div class="px-20 pt-10 pb-4">
+<p class="font-inter font-bold tracking-widest" style="font-size:1.3rem;color:#FD652D">12 · ДЕМОНСТРАЦИЯ</p>
+<h1 class="font-space font-bold leading-tight" style="font-size:3rem;color:#F1FAEE">Живой показ системы</h1>
+</div>
+<div class="flex flex-row gap-10 px-16 flex-1 min-h-0 pb-8">
+<div class="flex flex-col gap-4" style="flex:3">
+<div class="pipeline-step"><div class="flex flex-row items-center gap-3"><span class="font-space font-bold" style="font-size:1.5rem;color:#4FC3F7">1</span><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">docker compose ps → 13 сервисов healthy</p></div></div>
+<div class="pipeline-step"><div class="flex flex-row items-center gap-3"><span class="font-space font-bold" style="font-size:1.5rem;color:#4ADE80">2</span><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">Alembic migrations + seed users</p></div></div>
+<div class="pipeline-step"><div class="flex flex-row items-center gap-3"><span class="font-space font-bold" style="font-size:1.5rem;color:#FFC300">3</span><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">curl /api/v1/health → ollama + neo4j + qdrant healthy</p></div></div>
+<div class="pipeline-step"><div class="flex flex-row items-center gap-3"><span class="font-space font-bold" style="font-size:1.5rem;color:#FD652D">4</span><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">pytest → 64 passed</p></div></div>
+<div class="pipeline-step"><div class="flex flex-row items-center gap-3"><span class="font-space font-bold" style="font-size:1.5rem;color:#4FC3F7">5</span><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">Логин admin → загрузка 152-ФЗ → чат-запрос</p></div></div>
+<div class="pipeline-step"><div class="flex flex-row items-center gap-3"><span class="font-space font-bold" style="font-size:1.5rem;color:#4ADE80">6</span><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">Ответ с источниками (📎) + RBAC-фильтрация</p></div></div>
+<div class="pipeline-step"><div class="flex flex-row items-center gap-3"><span class="font-space font-bold" style="font-size:1.5rem;color:#FFC300">7</span><p class="font-inter" style="font-size:1.3rem;color:#F1FAEE">Jaeger traces + Grafana dashboard</p></div></div>
+</div>
+<div class="card flex flex-col" style="flex:2">
+<div class="card-body flex flex-col gap-4">
+<p class="font-space font-bold" style="font-size:1.4rem;color:#F1FAEE">Доступ к сервисам</p>
+<div class="flex flex-col gap-2">
+<p class="font-inter" style="font-size:1.1rem;color:#4FC3F7">http://localhost:3000 — Frontend</p>
+<p class="font-inter" style="font-size:1.1rem;color:#4ADE80">http://localhost:3001 — Grafana</p>
+<p class="font-inter" style="font-size:1.1rem;color:#FFC300">http://localhost:16686 — Jaeger</p>
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">http://localhost:9090 — Prometheus</p>
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">http://localhost:3100 — Open WebUI</p>
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">http://localhost:5050 — pgAdmin</p>
+<p class="font-inter" style="font-size:1.1rem;color:#A8B8C8">http://localhost:9001 — MinIO Console</p>
+</div>
+<div class="mt-4 p-4 rounded-lg" style="background:#0E1424">
+<p class="font-space font-bold" style="font-size:1.3rem;color:#F1FAEE">Demo: admin@graphrag.local</p>
+<p class="font-inter" style="font-size:0.9rem;color:#6B7B8B">Admin123!</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+</div><!-- /#slides-track -->
+
+<div class="nav-hint" id="navHint">
+<span>←</span><span class="key">←</span>
+<span class="page-indicator" id="pageIndicator">1 / 13</span>
+<span class="key">→</span><span>→</span>
+</div>
+</div>
+
+<script>
+(function() {
+const track = document.getElementById('slides-track');
+const hint = document.getElementById('navHint');
+const indicator = document.getElementById('pageIndicator');
+const totalSlides = 13;
+let currentSlide = 0;
+let hintTimer = null;
+
+function goToSlide(index) {
+if (index < 0) index = 0;
+if (index >= totalSlides) index = totalSlides - 1;
+currentSlide = index;
+track.style.transform = `translateX(-${currentSlide * 100}vw)`;
+indicator.textContent = `${currentSlide + 1} / ${totalSlides}`;
+showHint();
+initChartsForSlide(currentSlide);
+}
+function showHint() {
+hint.classList.remove('hidden');
+if (hintTimer) clearTimeout(hintTimer);
+hintTimer = setTimeout(() => hint.classList.add('hidden'), 3000);
+}
+function initChartsForSlide(index) {
+if (index === 8) {
+const canvas = document.getElementById('latencyChart');
+if (canvas && !canvas._chartInitialized) {
+canvas._chartInitialized = true;
+new Chart(canvas, {
+type: 'line',
+data: {
+labels: ['00:00','02:00','04:00','06:00','08:00','10:00','12:00','14:00','16:00','18:00'],
+datasets: [{
+label: 'P95 latency, сек',
+data: [11.2, 10.4, 9.8, 12.1, 14.3, 11.7, 10.9, 9.6, 10.2, 11.0],
+borderColor: '#FD652D', backgroundColor: '#2A2F4A',
+fill: true, tension: 0.4, pointBackgroundColor: '#FD652D', pointRadius: 5
+}]
+},
+options: {
+animation: false, responsive: true, maintainAspectRatio: false,
+plugins: { legend: { labels: { color: '#A8B8C8', font: { size: 14 } } } },
+scales: {
+x: { ticks: { color: '#A8B8C8', font: { size: 13 } }, grid: { color: '#2A2F4A' } },
+y: { ticks: { color: '#A8B8C8', font: { size: 13 } }, grid: { color: '#2A2F4A' }, min: 8, max: 16 }
+}
+}
+});
+}
+}
+}
+document.addEventListener('keydown', function(e) {
+if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+e.preventDefault(); goToSlide(currentSlide + 1);
+} else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+e.preventDefault(); goToSlide(currentSlide - 1);
+} else if (e.key === 'Home') { e.preventDefault(); goToSlide(0); }
+else if (e.key === 'End') { e.preventDefault(); goToSlide(totalSlides - 1); }
+});
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+const diff = touchStartX - e.changedTouches[0].clientX;
+if (Math.abs(diff) > 50) goToSlide(diff > 0 ? currentSlide + 1 : currentSlide - 1);
+});
+lucide.createIcons(); showHint();
+})();
+</script>
+</body>
+</html>

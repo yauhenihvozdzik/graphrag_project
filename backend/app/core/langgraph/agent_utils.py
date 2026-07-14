@@ -7,26 +7,56 @@
 
 import re
 
+from app.core.constants import (
+    GRAPH_QUERY_KEYWORDS,
+    LLM_SPELLING_LENGTH_MULTIPLIER,
+    LLM_SPELLING_MAX_LENGTH_RATIO,
+    LLM_SPELLING_MAX_TOKENS_BASE,
+    LLM_SPELLING_MIN_LENGTH_RATIO,
+    LLM_TEMPERATURE_SPELLING,
+)
 from app.core.prompts import (
     SYSTEM_PROMPT, NO_CONTEXT_MESSAGE, CONTEXT_HEADER,
-    GRAPH_QUERY_KEYWORDS,
+    SPELLING_CORRECTION_PROMPT,
 )
+from app.core.settings_registry import SettingsRegistry
 
 
-def build_system_prompt(context: str) -> str:
+def build_system_prompt(context: str, graph_context_stats: dict = None) -> str:
     """
-    Строит системный промпт для LLM с учётом контекста документов.
+    Строит системный промпт для LLM с учётом контекста документов и статистики графа знаний.
 
     Args:
         context: Текст контекста из найденных документов (может быть пустым).
+        graph_context_stats: Опциональная статистика графа {total_nodes, total_edges}.
     Returns:
         Строка с полным системным промптом.
     """
-    messages = [SYSTEM_PROMPT]
+    from app.core.logging import logger
+    registry = SettingsRegistry()
+    system_prompt = registry.get_system_prompt()
+    context_header = registry.get("prompts", "context_header", CONTEXT_HEADER)
+    no_context_msg = registry.get("prompts", "no_context_message", NO_CONTEXT_MESSAGE)
+    logger.info("build_system_prompt_debug",
+                system_prompt_preview=system_prompt[:80] if system_prompt else "None",
+                registry_keys=list(registry._settings.keys()))
+
+    messages = [system_prompt]
+    
+    # Добавляем информацию о графе знаний для контекста
+    if graph_context_stats:
+        nodes = graph_context_stats.get("total_nodes", 0)
+        edges = graph_context_stats.get("total_edges", 0)
+        if nodes > 0 or edges > 0:
+            messages.append(f"\nДОСТУПНАЯ ИНФРАСТРУКТУРА ЗНАНИЙ:\n"
+                          f"- Граф знаний содержит {nodes} узлов и {edges} связей между сущностями.\n"
+                          f"- При ответе используй не только текст документов, но и связи из графа знаний.\n"
+                          f"- Описывай все обнаруженные взаимосвязи между сущностями.")
+    
     if context:
-        messages.append(f"\n{CONTEXT_HEADER}\n{context}")
+        messages.append(f"\n{context_header}\n{context}")
     else:
-        messages.append(f"\n{NO_CONTEXT_MESSAGE}")
+        messages.append(f"\n{no_context_msg}")
     return "\n".join(messages)
 
 
@@ -87,6 +117,41 @@ def format_graph_context(graph_data: dict) -> str:
     return "\n".join(parts)
 
 
+def is_off_topic(query: str) -> bool:
+    """
+    Проверяет, относится ли запрос к бизнес-домену через настройки из БД.
+
+    Логика (управляется через административную панель):
+    1. Пустой запрос → off-topic.
+    2. Blacklist (``off_topic.blacklist``) — запросы с явно нерелевантными
+       ключевыми словами (погода, спорт, игры и т.д.) → off-topic.
+    3. Whitelist (``off_topic.keywords``) — запросы с бизнес-ключевыми
+       словами → заведомо в домене.
+    4. Всё остальное — считается бизнес-релевантным по умолчанию.
+
+    Все списки читаются из :class:`SettingsRegistry` (БД → кэш),
+    с fallback-значениями на случай недоступности БД.
+    """
+    if not query or not query.strip():
+        return True
+
+    query_lower = query.lower()
+    registry = SettingsRegistry()
+
+    # Проверяем blacklist — явно нерелевантные темы
+    for kw in registry.get_off_topic_blacklist():
+        if kw in query_lower:
+            return True
+
+    # Проверяем whitelist — бизнес-ключевые слова (усиление)
+    for kw in registry.get_off_topic_keywords():
+        if kw.lower() in query_lower:
+            return False
+
+    # По умолчанию — запрос считается бизнес-релевантным
+    return False
+
+
 def classify_query(messages: list) -> tuple[bool, list[str]]:
     """
     Классифицирует запрос пользователя: нужен ли графовый поиск.
@@ -114,3 +179,57 @@ def classify_query(messages: list) -> tuple[bool, list[str]]:
     entities = re.findall(r'[«"]([^»"]+)[»"]', last_message)
 
     return requires_graph, entities
+
+
+async def correct_spelling(text: str, ollama_service) -> str:
+    """
+    Исправляет опечатки и орфографические ошибки в запросе через LLM.
+    Если исправление не требуется или модель недоступна — возвращает исходный текст.
+
+    Args:
+        text: Исходный запрос пользователя (возможно, с опечатками).
+        ollama_service: Сервис Ollama для вызова LLM.
+    Returns:
+        Исправленный текст запроса.
+    """
+    if not text or not text.strip():
+        return text
+
+    # Пропускаем короткие запросы (1-2 слова) — эвристика: мало смысла править
+    words = text.split()
+    if len(words) <= 2:
+        return text
+
+    # Проверяем, есть ли явные признаки опечаток:
+    # - повторяющиеся буквы (более 2 подряд)
+    # - слова с заглавной буквы посреди предложения
+    # - небуквенные символы в середине слов
+    has_typo_indicators = (
+        re.search(r'(.)\1{2,}', text) is not None  # повтор букв: «чтооо»
+        or re.search(r'\b[a-z]+[A-Z]', text) is not None  # смешанный регистр внутри слова
+    )
+
+    if not has_typo_indicators:
+        return text  # не тратим LLM-вызов на чистый запрос
+
+    try:
+        registry = SettingsRegistry()
+        spelling_prompt = registry.get_spelling_prompt()
+        temperature_spelling = registry.get_temperature_spelling()
+
+        messages = [
+            {"role": "system", "content": spelling_prompt},
+            {"role": "user", "content": text},
+        ]
+        corrected = await ollama_service.chat(
+            messages=messages,
+            temperature=temperature_spelling,
+            options={"num_predict": min(len(text) * LLM_SPELLING_LENGTH_MULTIPLIER, LLM_SPELLING_MAX_TOKENS_BASE)},
+        )
+        corrected = corrected.strip().strip('"').strip("'")
+        # Если модель вернула пустоту или слишком сильно изменила длину — не рискуем
+        if not corrected or len(corrected) < len(text) * LLM_SPELLING_MIN_LENGTH_RATIO or len(corrected) > len(text) * LLM_SPELLING_MAX_LENGTH_RATIO:
+            return text
+        return corrected
+    except Exception:
+        return text

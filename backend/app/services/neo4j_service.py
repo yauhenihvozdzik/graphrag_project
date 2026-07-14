@@ -80,11 +80,11 @@ class Neo4jService:
             rec = await r.single()
             return rec["document"] if rec else None
 
-    async def create_document_node(self, doc_id: str, title: str, source: str, metadata: Optional[dict] = None, clearance_level: int = 0, department: str = "all", s3_key: str = "", s3_original_key: str = "", original_filename: str = "") -> dict:
+    async def create_document_node(self, doc_id: str, title: str, source: str, metadata: Optional[dict] = None, clearance_level: int = 0, department: str = "all", s3_key: str = "", s3_original_key: str = "", original_filename: str = "", full_text: str = "") -> dict:
         props = metadata or {}
-        q = "MERGE (d:Document {id:$doc_id}) SET d.title=$title, d.source=$source, d.clearance_level=$clearance_level, d.department=$department, d.s3_key=$s3_key, d.s3_original_key=$s3_original_key, d.original_filename=$original_filename, d.created_at=datetime(), d+=$metadata RETURN d{.*} AS document"
+        q = "MERGE (d:Document {id:$doc_id}) SET d.title=$title, d.source=$source, d.clearance_level=$clearance_level, d.department=$department, d.s3_key=$s3_key, d.s3_original_key=$s3_original_key, d.original_filename=$original_filename, d.full_text=$full_text, d.created_at=datetime(), d+=$metadata RETURN d{.*} AS document"
         async with self.session() as s:
-            r = await s.run(q, doc_id=doc_id, title=title, source=source, clearance_level=clearance_level, department=department, s3_key=s3_key, s3_original_key=s3_original_key, original_filename=original_filename, metadata=props)
+            r = await s.run(q, doc_id=doc_id, title=title, source=source, clearance_level=clearance_level, department=department, s3_key=s3_key, s3_original_key=s3_original_key, original_filename=original_filename, full_text=full_text, metadata=props)
             return (await r.single())["document"]
 
     async def create_chunk_node(self, chunk_id: str, document_id: str, text: str, position: int) -> dict:
@@ -131,6 +131,49 @@ class Neo4jService:
         async with self.session() as s:
             r = await s.run(f"MATCH (n:Entity) {wc} WITH n LIMIT $limit OPTIONAL MATCH (n)-[r]-(m:Entity) RETURN collect(DISTINCT {{id:n.id,name:n.name,type:n.entity_type,clearance:n.clearance_level}}) AS nodes, collect(DISTINCT {{source:startNode(r).id,target:endNode(r).id,type:type(r)}}) AS edges", limit=limit)
             rec = await r.single(); return {"nodes":rec["nodes"],"edges":rec["edges"]} if rec else {"nodes":[],"edges":[]}
+
+    async def get_related_documents(self, entity_name: str, limit: int = 10, rbac_filter: str = "") -> list[dict]:
+        """
+        Находит документы, связанные с указанной сущностью через граф.
+        Используется для обогащения контекста при поиске.
+        
+        Args:
+            entity_name: Имя сущности.
+            limit: Максимальное количество документов.
+            rbac_filter: Cypher WHERE условие для RBAC-фильтрации.
+            
+        Returns:
+            Список документов с полями title и text.
+        """
+        wc = f"AND {rbac_filter}" if rbac_filter else ""
+        q = f"""
+            MATCH (e:Entity {{name:$entity_name}})-[:MENTIONED_IN]->(c:Chunk)-[:PART_OF]->(d:Document)
+            WHERE d:Document {wc}
+            RETURN DISTINCT d.title AS title, d.id AS doc_id, c.text AS text
+            ORDER BY d.title
+            LIMIT $limit
+        """
+        try:
+            async with self.session() as s:
+                r = await s.run(q, entity_name=entity_name, limit=limit)
+                return [{"title": rec["title"] or "Без названия", "doc_id": rec["doc_id"], "text": rec["text"]} 
+                        for rec in await r.data()]
+        except Exception as e:
+            logger.debug("get_related_documents_failed", entity=entity_name, error=str(e))
+            # Fallback: прямой поиск через Entity-отношения
+            try:
+                fallback_q = f"""
+                    MATCH (e:Entity {{name:$entity_name}})-[]-(d:Document)
+                    WHERE d:Document {wc}
+                    RETURN DISTINCT d.title AS title, d.id AS doc_id, d.s3_original_key AS text
+                    LIMIT $limit
+                """
+                async with self.session() as s:
+                    r = await s.run(fallback_q, entity_name=entity_name, limit=limit)
+                    return [{"title": rec["title"] or "Без названия", "doc_id": rec["doc_id"], "text": rec["text"] or ""} 
+                            for rec in await r.data()]
+            except Exception:
+                return []
 
 
 neo4j_service = Neo4jService()
