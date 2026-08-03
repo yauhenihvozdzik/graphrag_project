@@ -18,6 +18,7 @@ from app.core.logging import logger
 from app.core.security.guardrails import guardrails_service
 from app.core.security.rbac import RBACService, Role
 from app.core.settings_registry import SettingsRegistry
+from app.models.admin import AdminSetting, AdminSettingsAudit
 from app.models.schemas import (
     AdminSettingResponse,
     AdminSettingsAll,
@@ -26,7 +27,9 @@ from app.models.schemas import (
     AdminSettingUpdate,
     AdminSettingsUpdateRequest,
 )
+from app.models.user import User
 from app.services.database import database_service
+from sqlmodel import Session, select
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -225,40 +228,34 @@ async def get_settings_history(
     """Return paginated audit history of setting changes."""
     RBACService.require_role(access_context, Role.ADMIN)
 
-    from app.models.admin import AdminSetting, AdminSettingsAudit
-
     audit_records = database_service.get_admin_settings_history(
         limit=limit, offset=offset,
     )
 
-    result: list[dict] = []
-    for audit in audit_records:
-        # Resolve the setting key and category
-        setting = database_service.get_user_by_id(audit.setting_id)
-        # Actually we need AdminSetting, not User; use a direct query
-        from sqlmodel import Session, select
-
-        with Session(database_service.engine) as s:
+    result: list[AdminSettingsHistory] = []
+    with Session(database_service.engine) as s:
+        for audit in audit_records:
+            # Resolve the setting key and category
             setting_row = s.get(AdminSetting, audit.setting_id)
 
-        # Resolve the user who made the change
-        changed_by_name: str | None = None
-        if audit.changed_by:
-            user_row = database_service.get_user_by_id(audit.changed_by)
-            if user_row:
-                changed_by_name = user_row.email or user_row.username
+            # Resolve the user who made the change
+            changed_by_name: str | None = None
+            if audit.changed_by:
+                user_row = s.get(User, audit.changed_by)
+                if user_row:
+                    changed_by_name = user_row.email or user_row.username
 
-        result.append(
-            AdminSettingsHistory(
-                id=audit.id,
-                setting_key=setting_row.key if setting_row else f"id:{audit.setting_id}",
-                category=setting_row.category if setting_row else "unknown",
-                old_value=audit.old_value,
-                new_value=audit.new_value,
-                changed_at=audit.changed_at,
-                changed_by=changed_by_name,
-            ).model_dump()
-        )
+            result.append(
+                AdminSettingsHistory(
+                    id=audit.id,
+                    setting_key=setting_row.key if setting_row else f"id:{audit.setting_id}",
+                    category=setting_row.category if setting_row else "unknown",
+                    old_value=audit.old_value,
+                    new_value=audit.new_value,
+                    changed_at=audit.changed_at,
+                    changed_by=changed_by_name,
+                )
+            )
 
     logger.info("admin_get_history", count=len(result), limit=limit, offset=offset)
     return result
