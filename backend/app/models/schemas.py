@@ -149,9 +149,7 @@ class IngestUrlRequest(BaseModel):
 class AzureWikiIngestRequest(BaseModel):
     """Azure DevOps Wiki repository ingestion request."""
     repo_url: str = Field(..., description="URL Azure DevOps Wiki git-репозитория")
-    pat_token: str = Field(default="", description="Personal Access Token для аутентификации")
-    username: str = Field(default="", description="Имя пользователя для Basic Auth (вместо PAT)")
-    password: str = Field(default="", description="Пароль для Basic Auth (вместо PAT)")
+    pat_token: str = Field(default="", description="Personal Access Token для аутентификации (пустая строка — без аутентификации)")
     clearance_level: int = Field(default=0, ge=0, le=3)
     department: str = Field(default="all")
 

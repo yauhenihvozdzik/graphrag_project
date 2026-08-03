@@ -835,9 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
             $('#ingest-url').value = '';
             $('#url-title').value = '';
             $('#wiki-repo-url').value = '';
-            $('#wiki-pat').value = '';
-            $('#wiki-username').value = '';
-            $('#wiki-password').value = '';
+                    $('#wiki-pat').value = '';
             clearFiles();
             $('#ingest-clearance').value = '0';
             $('#ingest-department').value = 'all';
@@ -1083,41 +1081,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 setTimeout(() => progressToast?.remove(), 6000);
                             } else if (ci === 'azure-wiki') {
-                                const repoUrl = $('#wiki-repo-url').value.trim();
-                                if (!repoUrl) {
-                                    alert('Введите URL репозитория');
-                                    btn.disabled = false;
-                                    btn.textContent = 'Загрузить';
-                                    return;
-                                }
-                
-                                const patToken = $('#wiki-pat').value.trim();
-                                const username = $('#wiki-username').value.trim();
-                                const password = $('#wiki-password').value.trim();
-                
-                                if (!patToken && !(username && password)) {
-                                    alert('Укажите PAT токен или логин/пароль');
-                                    btn.disabled = false;
-                                    btn.textContent = 'Загрузить';
-                                    return;
-                                }
-                
-                                const progressToast = toast('⏳ Клонирование и импорт Wiki...', 'info', { sticky: true });
-                                try {
-                                    const result = await api.ingestAzureWiki(repoUrl, patToken, username, password, cl, dp);
-                
-                                    if (result.success) {
-                                        updT(progressToast, `✅ ${result.message}`, 'success');
-                                        resetIngestForm();
-                                    } else {
-                                        const errText = result.errors.length > 0 ? result.errors.join('; ') : result.message;
-                                        updT(progressToast, `❌ ${errText}`, 'error');
-                                    }
-                                } catch (e) {
-                                    updT(progressToast, `❌ ${e.message}`, 'error');
-                                }
-                                setTimeout(() => progressToast?.remove(), 10000);
-                            }
+                                            const repoUrl = $('#wiki-repo-url').value.trim();
+                                            if (!repoUrl) {
+                                                alert('Введите URL репозитория');
+                                                btn.disabled = false;
+                                                btn.textContent = 'Загрузить';
+                                                return;
+                                            }
+                            
+                                            const patToken = $('#wiki-pat').value.trim();
+                                            if (!patToken) {
+                                                alert('Укажите PAT токен для аутентификации');
+                                                btn.disabled = false;
+                                                btn.textContent = 'Загрузить';
+                                                return;
+                                            }
+                            
+                                            const progressToast = toast('⏳ Клонирование и импорт Wiki...', 'info', { sticky: true });
+                                            try {
+                                                const result = await api.ingestAzureWiki(repoUrl, patToken, cl, dp);
+                            
+                                                if (result.success) {
+                                                    updT(progressToast, `✅ ${result.message}`, 'success');
+                                                    resetIngestForm();
+                                                } else {
+                                                    const errText = result.errors.length > 0 ? result.errors.join('; ') : result.message;
+                                                    updT(progressToast, `❌ ${errText}`, 'error');
+                                                }
+                                            } catch (e) {
+                                                updT(progressToast, `❌ ${e.message}`, 'error');
+                                            }
+                                            setTimeout(() => progressToast?.remove(), 10000);
+                                        }
                         } catch (e) {
             toast(`✗ ${e.message}`, 'error');
         } finally {

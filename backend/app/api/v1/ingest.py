@@ -324,8 +324,6 @@ async def ingest_azure_wiki(
     result = await clone_and_import_wiki(
         repo_url=body.repo_url,
         pat_token=body.pat_token,
-        username=body.username,
-        password=body.password,
         clearance_level=body.clearance_level,
         department=body.department,
     )

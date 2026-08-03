@@ -275,30 +275,18 @@
                         
                                                 <!-- Azure Wiki Ingest Card -->
                                                 <div class="ingest-card card" id="ingest-card-azure-wiki">
-                                                    <h3>Импорт Azure DevOps Wiki</h3>
-                                                    <p class="hint" style="margin-bottom:12px;">Клонирует Wiki-репозиторий и импортирует все .md документы</p>
-                                                    <div class="form-group">
-                                                        <label for="wiki-repo-url">URL репозитория</label>
-                                                        <input type="url" id="wiki-repo-url" placeholder="https://azure.shate-m.by/Org/Project/_git/Repo.wiki">
-                                                    </div>
-                                                    <div class="form-row">
-                                                        <div class="form-group">
-                                                            <label for="wiki-pat">PAT токен</label>
-                                                            <input type="password" id="wiki-pat" placeholder="Или оставьте пустым для Basic Auth">
-                                                        </div>
-                                                    </div>
-                                                    <div class="form-row">
-                                                        <div class="form-group">
-                                                            <label for="wiki-username">Имя пользователя</label>
-                                                            <input type="text" id="wiki-username" placeholder="Доменный логин">
-                                                        </div>
-                                                        <div class="form-group">
-                                                            <label for="wiki-password">Пароль</label>
-                                                            <input type="password" id="wiki-password" placeholder="Пароль">
-                                                        </div>
-                                                    </div>
-                                                    <p class="hint">Используйте PAT токен ИЛИ логин/пароль. Импорт может занять несколько минут.</p>
-                                                </div>
+                                                                            <h3>Импорт Azure DevOps Wiki</h3>
+                                                                            <p class="hint" style="margin-bottom:12px;">Клонирует Wiki-репозиторий и импортирует все .md документы</p>
+                                                                            <div class="form-group">
+                                                                                <label for="wiki-repo-url">URL репозитория</label>
+                                                                                <input type="url" id="wiki-repo-url" placeholder="https://azure.shate-m.by/Org/Project/_git/Repo.wiki">
+                                                                            </div>
+                                                                            <div class="form-group">
+                                                                                <label for="wiki-pat">PAT токен (Personal Access Token)</label>
+                                                                                <input type="password" id="wiki-pat" placeholder="Сгенерируйте в Azure DevOps → User Settings → Personal Access Tokens">
+                                                                            </div>
+                                                                            <p class="hint">Требуется PAT токен с доступом на чтение репозитория (Code → Read). Импорт может занять несколько минут.</p>
+                                                                        </div>
                         
                                                 <!-- Access Parameters Card -->
                         <div class="card">
