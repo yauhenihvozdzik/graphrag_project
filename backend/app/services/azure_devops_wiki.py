@@ -136,19 +136,23 @@ def _build_auth_url(repo_url: str, pat_token: str = "", username: str = "", pass
         password: Password for Basic Auth (alternative to PAT)
     
     Returns:
-        Authenticated URL for git clone
+        Authenticated URL for git clone.
     """
+    from urllib.parse import quote
+    
     if pat_token:
-        # PAT token auth: https://:{token}@host/...
+        # PAT token auth — encode token and embed in URL
+        encoded_token = quote(pat_token, safe='')
         if repo_url.startswith("https://"):
-            return repo_url.replace("https://", f"https://:{pat_token}@")
+            return repo_url.replace("https://", f"https://:{encoded_token}@")
     elif username and password:
-        # Basic Auth: https://user:pass@host/...
-        from urllib.parse import quote
+        # Basic Auth — URL-encode credentials to handle special chars (!@# etc.)
+        encoded_user = quote(username, safe='')
+        encoded_pass = quote(password, safe='')
         if repo_url.startswith("https://"):
             return repo_url.replace(
                 "https://",
-                f"https://{quote(username, safe='')}:{quote(password, safe='')}@",
+                f"https://{encoded_user}:{encoded_pass}@",
             )
     
     return repo_url
@@ -167,6 +171,8 @@ async def clone_and_import_wiki(
     Args:
         repo_url: URL of Azure DevOps Wiki git repository
         pat_token: Optional PAT for authentication
+        username: Username for Basic Auth (alternative to PAT)
+        password: Password for Basic Auth (alternative to PAT)
         clearance_level: Default clearance level for imported docs
         department: Default department for imported docs
     
@@ -196,7 +202,6 @@ async def clone_and_import_wiki(
         ]
         
         env = os.environ.copy()
-        # Disable git credential prompts
         env["GIT_TERMINAL_PROMPT"] = "0"
         env["GCM_INTERACTIVE"] = "Never"
         
