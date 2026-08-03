@@ -59,7 +59,7 @@ async def chat(
         return ChatResponse(messages=[Message(role="assistant", content=response_text)], sources=sources)
     except Exception as e:
         logger.exception("chat_request_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Ошибка обработки запроса")
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки запроса: {str(e)}")
 
 
 @router.post("/chat/stream")
@@ -110,7 +110,7 @@ async def get_chat_history(current_user: dict = Depends(get_current_user), limit
         ]}
     except Exception as e:
         logger.exception("get_chat_history_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Ошибка получения истории")
+        raise HTTPException(status_code=500, detail=f"Ошибка получения истории: {str(e)}")
 
 
 @router.delete("/chat/history")
@@ -120,4 +120,4 @@ async def clear_chat_history(current_user: dict = Depends(get_current_user)):
         return {"success": True, "deleted": count}
     except Exception as e:
         logger.exception("clear_chat_history_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Ошибка очистки истории")
+        raise HTTPException(status_code=500, detail=f"Ошибка очистки истории: {str(e)}")
