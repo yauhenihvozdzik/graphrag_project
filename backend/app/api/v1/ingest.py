@@ -21,7 +21,13 @@ from app.core.graphrag.vector_indexer import vector_indexer_service
 from app.core.logging import logger
 from app.core.metrics import documents_ingested_total
 from app.core.security.rbac import AccessContext, Role
-from app.models.schemas import IngestRequest, IngestUrlRequest, IngestStatusResponse
+from app.models.schemas import (
+    AzureWikiIngestRequest,
+    AzureWikiIngestResponse,
+    IngestRequest,
+    IngestStatusResponse,
+    IngestUrlRequest,
+)
 from app.services.database import database_service
 from app.services.neo4j_service import neo4j_service
 from app.services.ollama_service import ollama_service
@@ -288,3 +294,40 @@ async def ingest_url_json(
     logger.info("bg_url_ingestion_started", user_id=current_user["user_id"], document_id=doc_id)
     documents_ingested_total.labels(status="queued").inc()
     return IngestStatusResponse(document_id=doc_id, status="processing")
+
+
+@router.post("/ingest/azure-wiki", response_model=AzureWikiIngestResponse)
+async def ingest_azure_wiki(
+    request: Request,
+    body: AzureWikiIngestRequest,
+    current_user=Depends(get_current_user),
+    access_context=Depends(get_access_context),
+):
+    """Import all documents from an Azure DevOps Wiki git repository.
+
+    Clones the Wiki repo (shallow), parses all .md files respecting
+    .order files for page ordering, and imports each document through
+    the full GraphRAG ingestion pipeline (text → chunks → entities →
+    graph → vectors → S3).
+    """
+    if access_context.role not in (Role.ADMIN, Role.ANALYST):
+        raise HTTPException(403, "Недостаточно прав")
+
+    logger.info(
+        "azure_wiki_ingest_request",
+        user_id=current_user["user_id"],
+        repo_url=body.repo_url,
+    )
+
+    from app.services.azure_devops_wiki import clone_and_import_wiki
+
+    result = await clone_and_import_wiki(
+        repo_url=body.repo_url,
+        pat_token=body.pat_token,
+        username=body.username,
+        password=body.password,
+        clearance_level=body.clearance_level,
+        department=body.department,
+    )
+
+    return AzureWikiIngestResponse(**result)

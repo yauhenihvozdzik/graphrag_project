@@ -145,6 +145,25 @@ class IngestUrlRequest(BaseModel):
     clearance_level: int = Field(default=0, ge=0, le=3)
     department: str = Field(default="all")
 
+
+class AzureWikiIngestRequest(BaseModel):
+    """Azure DevOps Wiki repository ingestion request."""
+    repo_url: str = Field(..., description="URL Azure DevOps Wiki git-репозитория")
+    pat_token: str = Field(default="", description="Personal Access Token для аутентификации")
+    username: str = Field(default="", description="Имя пользователя для Basic Auth (вместо PAT)")
+    password: str = Field(default="", description="Пароль для Basic Auth (вместо PAT)")
+    clearance_level: int = Field(default=0, ge=0, le=3)
+    department: str = Field(default="all")
+
+
+class AzureWikiIngestResponse(BaseModel):
+    """Response after Azure Wiki ingestion."""
+    success: bool = False
+    total_documents: int = 0
+    documents: list[dict] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+    message: str = ""
+
 class IngestRequest(BaseModel):
     """Document ingestion request."""
 
