@@ -231,8 +231,9 @@
                         <!-- Ingest Type Selector -->
                         <div class="ingest-type-selector">
                             <button class="ingest-type-btn active" data-ingest="text">📝 Текст</button>
-                            <button class="ingest-type-btn" data-ingest="file">📎 Файлы</button>
-                            <button class="ingest-type-btn" data-ingest="url">🌐 URL</button>
+                                                        <button class="ingest-type-btn" data-ingest="file">📎 Файлы</button>
+                                                        <button class="ingest-type-btn" data-ingest="url">🌐 URL</button>
+                                                        <button class="ingest-type-btn" data-ingest="azure-wiki">🏗️ Azure Wiki</button>
                         </div>
 
                         <!-- Text Ingest Card -->
@@ -271,8 +272,35 @@
                                 <input type="text" id="url-title" placeholder="Автоматически из URL">
                             </div>
                         </div>
-
-                        <!-- Access Parameters Card -->
+                        
+                                                <!-- Azure Wiki Ingest Card -->
+                                                <div class="ingest-card card" id="ingest-card-azure-wiki">
+                                                    <h3>Импорт Azure DevOps Wiki</h3>
+                                                    <p class="hint" style="margin-bottom:12px;">Клонирует Wiki-репозиторий и импортирует все .md документы</p>
+                                                    <div class="form-group">
+                                                        <label for="wiki-repo-url">URL репозитория</label>
+                                                        <input type="url" id="wiki-repo-url" placeholder="https://azure.shate-m.by/Org/Project/_git/Repo.wiki">
+                                                    </div>
+                                                    <div class="form-row">
+                                                        <div class="form-group">
+                                                            <label for="wiki-pat">PAT токен</label>
+                                                            <input type="password" id="wiki-pat" placeholder="Или оставьте пустым для Basic Auth">
+                                                        </div>
+                                                    </div>
+                                                    <div class="form-row">
+                                                        <div class="form-group">
+                                                            <label for="wiki-username">Имя пользователя</label>
+                                                            <input type="text" id="wiki-username" placeholder="Доменный логин">
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label for="wiki-password">Пароль</label>
+                                                            <input type="password" id="wiki-password" placeholder="Пароль">
+                                                        </div>
+                                                    </div>
+                                                    <p class="hint">Используйте PAT токен ИЛИ логин/пароль. Импорт может занять несколько минут.</p>
+                                                </div>
+                        
+                                                <!-- Access Parameters Card -->
                         <div class="card">
                             <h3>Параметры доступа</h3>
                             <div class="form-row">

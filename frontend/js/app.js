@@ -830,14 +830,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function resetIngestForm() {
-        $('#ingest-title').value = '';
-        $('#ingest-text').value = '';
-        $('#ingest-url').value = '';
-        $('#url-title').value = '';
-        clearFiles();
-        $('#ingest-clearance').value = '0';
-        $('#ingest-department').value = 'all';
-    }
+            $('#ingest-title').value = '';
+            $('#ingest-text').value = '';
+            $('#ingest-url').value = '';
+            $('#url-title').value = '';
+            $('#wiki-repo-url').value = '';
+            $('#wiki-pat').value = '';
+            $('#wiki-username').value = '';
+            $('#wiki-password').value = '';
+            clearFiles();
+            $('#ingest-clearance').value = '0';
+            $('#ingest-department').value = 'all';
+        }
 
     $('#ingest-submit-btn').onclick = async () => {
         const btn = $('#ingest-submit-btn');
@@ -1078,8 +1082,43 @@ document.addEventListener('DOMContentLoaded', () => {
                     );
                 }
                 setTimeout(() => progressToast?.remove(), 6000);
-            }
-        } catch (e) {
+                            } else if (ci === 'azure-wiki') {
+                                const repoUrl = $('#wiki-repo-url').value.trim();
+                                if (!repoUrl) {
+                                    alert('Введите URL репозитория');
+                                    btn.disabled = false;
+                                    btn.textContent = 'Загрузить';
+                                    return;
+                                }
+                
+                                const patToken = $('#wiki-pat').value.trim();
+                                const username = $('#wiki-username').value.trim();
+                                const password = $('#wiki-password').value.trim();
+                
+                                if (!patToken && !(username && password)) {
+                                    alert('Укажите PAT токен или логин/пароль');
+                                    btn.disabled = false;
+                                    btn.textContent = 'Загрузить';
+                                    return;
+                                }
+                
+                                const progressToast = toast('⏳ Клонирование и импорт Wiki...', 'info', { sticky: true });
+                                try {
+                                    const result = await api.ingestAzureWiki(repoUrl, patToken, username, password, cl, dp);
+                
+                                    if (result.success) {
+                                        updT(progressToast, `✅ ${result.message}`, 'success');
+                                        resetIngestForm();
+                                    } else {
+                                        const errText = result.errors.length > 0 ? result.errors.join('; ') : result.message;
+                                        updT(progressToast, `❌ ${errText}`, 'error');
+                                    }
+                                } catch (e) {
+                                    updT(progressToast, `❌ ${e.message}`, 'error');
+                                }
+                                setTimeout(() => progressToast?.remove(), 10000);
+                            }
+                        } catch (e) {
             toast(`✗ ${e.message}`, 'error');
         } finally {
             // Re-enable button and clear file selection
