@@ -10,7 +10,7 @@
 
 | Компонент | Решение | Версия / Квантование | Ресурсы | ADR |
 |---|---|---|---|---|
-| **LLM** | T-lite-it-1.0 (7B) / Qwen 2.5 (7B) | Q4_K_M (Ollama) | ~6.5 GB VRAM (веса + KV-cache) | [ADR-001](adr/001-llm-model-selection.md) |
+| **LLM** | Qwen 2.5 (7B) | Q4_K_M (Ollama) | ~6.5 GB VRAM (веса + KV-cache) | [ADR-001](adr/001-llm-model-selection.md) |
 | **Embedding** | BAAI/bge-m3 | FP16 (1024-dim) | ~1.1 GB RAM (CPU inference) | [ADR-002](adr/002-embedding-model-selection.md) |
 | **LLM Serving** | Ollama | Latest | ~0.5 GB overhead | [ADR-003](adr/003-llm-serving-engine.md) |
 | **Vector DB** | Qdrant | Latest | ~1.5 GB RAM (500K vectors) | [ADR-004](adr/004-vector-database.md) |
@@ -31,7 +31,7 @@
 ┌──────────────────────────────────────────────────┐
 │                  RTX 4060 — 8 GB VRAM            │
 ├──────────────────────────────────────┬───────────┤
-│ T-lite 7B Q4_K_M / Qwen 2.5 7B     │  4.5 GB   │
+│ Qwen 2.5 7B Q4_K_M                  │  4.5 GB   │
 │ Q4_K_M (веса)                        │           │
 ├──────────────────────────────────────┼───────────┤
 │ KV-cache (авто, ctx 4096)            │  1.5 GB   │
@@ -80,11 +80,11 @@
 
 ## Ключевые обоснования выбора
 
-### LLM: T-lite-it-1.0 (7B) — основная модель
-- **Русский язык**: дообучена T-Bank специально для русского языка, показывает лучшие результаты на русскоязычных бенчмарках среди 7B-моделей
+### LLM: Qwen 2.5 (7B) — основная модель
+- **Мультиязычность**: обучена на 29+ языках, включая русский, хорошее качество генерации
 - **VRAM**: Q4_K_M (~4.5 GB) оставляет ~3.5 GB для KV-cache → контекст до 8K токенов
 - **Совместимость**: нативная поддержка Ollama, официальные GGUF
-- **Резервная модель**: Qwen 2.5 (7B) — обучена на 29+ языках, может быть использована как замена (изменить `OLLAMA_MODEL` в `backend/.env`)
+- **Альтернативная модель**: T-lite-it-1.0 (7B) — дообучена T-Bank для русского языка (изменить `OLLAMA_MODEL` в `backend/.env`)
 
 ### Embedding: bge-m3 (а не e5-large / rubert)
 - **Контекст 8192 токенов**: юридические документы без chunking
@@ -185,32 +185,27 @@ dependencies = [
 
     # ── Metrics ──
     "prometheus-client>=0.20.0",
-    "starlette-prometheus>=0.9.0",
 
     # ── GPU Monitoring ──
     "nvidia-ml-py>=12.0.0",
 
-    # ── Tracing ──
-    "opentelemetry-api>=1.20.0",
-    "opentelemetry-sdk>=1.20.0",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
-    "opentelemetry-instrumentation-fastapi",
-    "opentelemetry-instrumentation-httpx",
+    # ── Document Processing ──
+    "pymupdf>=1.24.0",
+    "python-docx>=1.1.0",
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.24",
-    "pytest-timeout>=2.2",
-    "httpx>=0.27",
-]
 otel = [
-    "opentelemetry-api>=1.20.0",
-    "opentelemetry-sdk>=1.20.0",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
-    "opentelemetry-instrumentation-fastapi",
-    "opentelemetry-instrumentation-httpx",
+    "opentelemetry-api>=1.25.0",
+    "opentelemetry-sdk>=1.25.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.25.0",
+    "opentelemetry-instrumentation-fastapi>=0.46b0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+    "ruff>=0.4.0",
 ]
 ```
 
@@ -230,7 +225,7 @@ otel = [
 
 ## Список ADR документов
 
-1. [ADR-001: Выбор LLM модели](adr/001-llm-model-selection.md) — T-lite-it-1.0 (7B) GGUF Q4_K_M (основная), Qwen 2.5 (7B) резервная
+1. [ADR-001: Выбор LLM модели](adr/001-llm-model-selection.md) — Qwen 2.5 (7B) GGUF Q4_K_M (основная), T-lite-it-1.0 (7B) альтернативная
 2. [ADR-002: Выбор Embedding модели](adr/002-embedding-model-selection.md) — BAAI/bge-m3 (1024-dim)
 3. [ADR-003: Выбор LLM Serving Engine](adr/003-llm-serving-engine.md) — Ollama
 4. [ADR-004: Выбор Vector Database](adr/004-vector-database.md) — Qdrant

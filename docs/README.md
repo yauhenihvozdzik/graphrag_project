@@ -48,7 +48,7 @@
 
 | Компонент | Технология | Назначение |
 |-----------|-----------|------------|
-| LLM | Ollama + T-lite-it-1.0 (7B) / Qwen 2.5 (7B) | Генерация ответов на русском языке |
+| LLM | Ollama + Qwen 2.5 (7B) | Генерация ответов на русском языке |
 | Embeddings | bge-m3 (1024-dim) | Векторные представления документов |
 | Vector DB | Qdrant | Семантический поиск с фильтрацией по RBAC |
 | Graph DB | Neo4j 5.26 Community | Граф знаний, связи сущностей |
@@ -85,7 +85,7 @@ chmod +x scripts/init.sh
 ./scripts/init.sh
 ```
 
-Примечание: `scripts/init.sh` запускает инфраструктуру, ожидает готовности сервисов, загружает модели Ollama (`t-lite:7b-q4_K_M`, `bge-m3`), создаёт индексы Neo4j, seed-пользователей и запускает backend+frontend.
+Примечание: `scripts/init.sh` запускает полный стек (`docker compose up -d`), ожидает готовности сервисов, проверяет наличие моделей Ollama (`qwen2.5:7b`, `bge-m3`), создаёт индексы Neo4j, проверяет seed-пользователей (backend авто-заполняет при старте).
 
 ### Доступ к сервисам
 
@@ -199,7 +199,7 @@ pytest ../tests/ -v
 
 ```
 graphrag_project/
-├── docker-compose.yml          # Полный стек (13 сервисов)
+├── docker-compose.yml          # Полный стек (14 сервисов)
 ├── monitoring/
 │   ├── prometheus.yml          # Конфигурация Prometheus
 │   ├── grafana/                # Дашборды Grafana
@@ -219,20 +219,23 @@ graphrag_project/
 │   └── nginx.conf              # Прокси /api/* → backend:8000, SSE
 ├── backend/
 │   ├── app/
-│   │   ├── api/v1/             # REST API endpoints (auth, chat, ingest, graph, departments, tests)
+│   │   ├── api/v1/             # REST API endpoints (auth, chat, ingest, graph, departments, admin, tests)
 │   │   ├── core/
 │   │   │   ├── config.py       # Settings (env-based)
+│   │   │   ├── constants.py    # Константы (разрешённые расширения, стоп-токены и т.д.)
 │   │   │   ├── logging.py      # Структурное логирование (structlog)
 │   │   │   ├── metrics.py      # Prometheus метрики
 │   │   │   ├── middleware.py    # CORS, SecurityHeaders, Logging, Metrics
 │   │   │   ├── observability.py # OpenTelemetry трассировка
 │   │   │   ├── prompts.py      # Системные промпты и константы
+│   │   │   ├── settings_registry.py # Динамический реестр настроек (БД → кэш)
 │   │   │   ├── graphrag/       # GraphRAG pipeline (ingestion, extraction, graph, vectors)
-│   │   │   ├── langgraph/      # LangGraph agent (agent, tools, memory)
+│   │   │   ├── langgraph/      # LangGraph agent (agent, tools, memory, agent_utils)
 │   │   │   └── security/       # RBAC + Guardrails
-│   │   ├── models/             # Pydantic schemas + SQLModel (user, session, schemas)
+│   │   ├── models/             # SQLModel + Pydantic schemas (user, session, admin, department, file_metadata, message, schemas)
 │   │   ├── services/           # Neo4j, Qdrant, Ollama, DB (PostgreSQL), S3 (MinIO)
-│   │   └── utils/              # Auth (JWT), sanitization
+│   │   ├── utils/              # Auth (JWT), sanitization
+│   │   └── seed_admin_settings.py # Начальное заполнение admin_settings
 │   ├── Dockerfile
 │   ├── pyproject.toml
 │   └── .env

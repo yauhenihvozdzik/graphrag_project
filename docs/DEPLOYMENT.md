@@ -105,14 +105,15 @@ docker compose ps
 ## Шаг 4: Загрузка моделей Ollama
 
 ```powershell
-# Подождите ~30 секунд после запуска ollama
-docker exec graphrag-ollama ollama pull t-lite:7b-q4_K_M
+# Модели загружаются автоматически сервисом ollama-init
+# Для ручной загрузки:
+docker exec graphrag-ollama ollama pull qwen2.5:7b
 docker exec graphrag-ollama ollama pull bge-m3
 ```
 
 ⏱ Загрузка моделей может занять 10-30 минут в зависимости от скорости интернета.
 
-> **Примечание**: Основная модель — `t-lite:7b-q4_K_M` (T-lite-it-1.0, дообучена T-Bank для русского языка). При необходимости можно заменить на `qwen2.5:7b` — измените `OLLAMA_MODEL` в `backend/.env`.
+> **Примечание**: Основная модель — `qwen2.5:7b` (Qwen 2.5, 7B параметров). Сервис `ollama-init` в docker-compose.yml автоматически загружает модели при первом запуске. При необходимости можно заменить модель — измените `OLLAMA_MODEL` в `backend/.env`.
 
 ## Шаг 5: Инициализация базы данных
 
@@ -246,7 +247,7 @@ docker compose restart backend
 2. Или используйте менее ресурсоёмкую модель:
    ```powershell
    # В backend/.env замените:
-   OLLAMA_MODEL=gemma:2b
+   OLLAMA_MODEL=qwen2.5:3b
    ```
 
 ### Порт занят

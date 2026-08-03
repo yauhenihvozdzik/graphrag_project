@@ -15,7 +15,7 @@ echo "╚═══════════════════════�
 echo ""
 echo "▸ Checking prerequisites..."
 
-for cmd in docker docker-compose curl python3; do
+for cmd in docker python3 curl; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "  ✗ $cmd is not installed. Please install it first."
     exit 1
@@ -31,11 +31,11 @@ if [ ! -f "$PROJECT_DIR/backend/.env" ]; then
     echo "  ⚠ No .env.example found, using existing .env"
 fi
 
-# ── 3. Start infrastructure ─────────────────────────
+# ── 3. Start full stack ─────────────────────────────
 echo ""
-echo "▸ Starting infrastructure services..."
+echo "▸ Starting all services (full stack)..."
 cd "$PROJECT_DIR"
-docker-compose up -d neo4j qdrant postgres ollama jaeger prometheus grafana
+docker compose up -d
 
 echo ""
 echo "▸ Waiting for services to be healthy..."
@@ -71,11 +71,34 @@ for i in $(seq 1 20); do
   sleep 2
 done
 
-# ── 4. Pull Ollama models ───────────────────────────
+# Wait for Backend
+echo "  Waiting for Backend..."
+for i in $(seq 1 30); do
+  if curl -sf http://localhost:8000/api/v1/health &>/dev/null; then
+    echo "  ✓ Backend is ready"
+    break
+  fi
+  sleep 2
+done
+
+# ── 4. Pull Ollama models (ollama-init handles this automatically,
+#       but we ensure they are available) ──────────────
 echo ""
-echo "▸ Pulling Ollama models (this may take a while)..."
-docker exec graphrag-ollama ollama pull t-lite:7b-q4_K_M || echo "  ⚠ Failed to pull t-lite model"
-docker exec graphrag-ollama ollama pull bge-m3 || echo "  ⚠ Failed to pull bge-m3 model"
+echo "▸ Ensuring Ollama models are pulled..."
+echo "  (ollama-init service handles this automatically; checking status...)"
+if docker exec graphrag-ollama ollama list 2>/dev/null | grep -q "qwen2.5:7b"; then
+  echo "  ✓ qwen2.5:7b already present"
+else
+  echo "  Pulling qwen2.5:7b (this may take a while)..."
+  docker exec graphrag-ollama ollama pull qwen2.5:7b || echo "  ⚠ Failed to pull qwen2.5:7b"
+fi
+
+if docker exec graphrag-ollama ollama list 2>/dev/null | grep -q "bge-m3"; then
+  echo "  ✓ bge-m3 already present"
+else
+  echo "  Pulling bge-m3..."
+  docker exec graphrag-ollama ollama pull bge-m3 || echo "  ⚠ Failed to pull bge-m3"
+fi
 
 # ── 5. Initialize Neo4j constraints & indexes ───────
 echo ""
@@ -92,17 +115,20 @@ docker exec graphrag-neo4j cypher-shell -u neo4j -p neo4j_password \
   "CREATE INDEX chunk_clearance IF NOT EXISTS FOR (c:Chunk) ON (c.clearance_level);" 2>/dev/null || true
 echo "  ✓ Neo4j indexes created"
 
-# ── 6. Seed users ───────────────────────────────────
+# ── 6. Seed users and departments ──────────────────
 echo ""
-echo "▸ Seeding demo users..."
-cd "$SCRIPT_DIR"
-python3 seed_users.py || echo "  ⚠ User seeding failed (backend may not be running yet)"
-
-# ── 7. Start application services ───────────────────
-echo ""
-echo "▸ Starting application services..."
+echo "▸ Seeding demo data..."
 cd "$PROJECT_DIR"
-docker-compose up -d backend frontend
+# Backend auto-seeds departments and users at startup; verify they exist
+echo "  Verifying demo users..."
+ADMIN_CHECK=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@graphrag.local","password":"Admin123!"}' 2>/dev/null || echo "")
+if echo "$ADMIN_CHECK" | grep -q "access_token"; then
+  echo "  ✓ Demo users present"
+else
+  echo "  ⚠ Demo users may not exist yet (backend auto-seeds at startup)"
+fi
 
 echo ""
 echo "╔══════════════════════════════════════════════╗"
@@ -113,5 +139,6 @@ echo "║  Backend API: http://localhost:8000/docs      ║"
 echo "║  Neo4j:       http://localhost:7474           ║"
 echo "║  Grafana:     http://localhost:3001           ║"
 echo "║  Jaeger:      http://localhost:16686          ║"
-echo "║  Prometheus:  http://localhost:9090           ║"
+echo "║  MinIO:       http://localhost:9001           ║"
+echo "║  Open WebUI:  http://localhost:3100           ║"
 echo "╚══════════════════════════════════════════════╝"
